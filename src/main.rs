@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::{UdpSocket};
 use byteorder::{ByteOrder, BigEndian};
 
+#[derive(Debug, PartialEq)]
 struct DnsHeader {
     tx_id: u16,
     is_response: bool,
@@ -19,18 +20,55 @@ struct DnsHeader {
 }
 
 impl DnsHeader {
+    pub fn new() -> Self {
+        DnsHeader {
+            tx_id: 0,
+            is_response: false,
+            opcode: 0,
+            authoritative: false,
+            truncated: false,
+            recursion_desired: false,
+            recursion_available: false,
+            z: 0,
+            response_code: 0,
+            questions_count: 0,
+            answers_count: 0,
+            authority_count: 0,
+            additional_count: 0,
+        }
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let tx_id = BigEndian::read_u16(bytes);
         let flags = &bytes[2..4];
-        let questions = BigEndian::read_u16(&bytes[4..6]);
+        let questions_count = BigEndian::read_u16(&bytes[4..6]);
         let answers_count = BigEndian::read_u16(&bytes[6..8]);
         let authority_count = BigEndian::read_u16(&bytes[8..10]);
         let additional_count = BigEndian::read_u16(&bytes[10..12]);
         DnsHeader {
             tx_id,
-            is_response: flags[0] & 0x8 as bool,
-            opcode: (flags[0] & 0x7)
+            is_response: flags[0] & 0x8 > 0,
+            opcode: Self::opcode(&flags[0]),
+            authoritative: (flags[0] & 0x04) > 0,
+            truncated: flags[0] & 0x02 > 0,
+            recursion_desired: flags[0] & 0x01 > 0,
+            recursion_available: flags[1] & 0x80 > 0,
+            z: flags[1] & 0x70,
+            response_code: flags[1] & 0x0f,
+            questions_count,
+            answers_count,
+            authority_count,
+            additional_count,
         }
+    }
+
+    /// In the flags section, the opcode is
+    /// .xxx x... .... ....
+    fn opcode(byte: &u8) -> u8 {
+        let mut res = byte & 0x70;
+        res << 1;
+        res += byte & 0x08;
+        res
     }
 }
 
@@ -50,26 +88,32 @@ mod tests {
     #[test]
     fn test_header_from_bytes() {
         let bytes = [
-            0xffi8, 0xffi8, // transaction id
-            0x01i8, 0x00i8, // flags (standard query request)
-            0x00i8, 0x01i8, // 1 question
-            0x00i8, 0x00i8, // dns request, so no answer rr's here of course
-            0x00i8, 0x00i8, // neither authority rr's
-            0x00i8, 0x00i8, // nor additional rr's
+            0xffu8, 0xffu8, // transaction id
+            0x01u8, 0x00u8, // flags (standard query request)
+            0x00u8, 0x01u8, // 1 question
+            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
+            0x00u8, 0x00u8, // neither authority rr's
+            0x00u8, 0x00u8, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(bytes);
-        let expected_header = DnsHeader::new();
+        let actual_header = DnsHeader::from_bytes(&bytes);
+        let mut expected_header = DnsHeader::new();
+        expected_header.tx_id = 0xffff;
+        expected_header.recursion_desired = true;
+        expected_header.questions_count = 1;
+
+        assert_eq!(expected_header, actual_header);
     }
 
     #[test]
     fn test_request_from_bytes() {
         let bytes = [
-            0xffi8, 0xffi8, // transaction id
-            0x01i8, 0x00i8, // flags (standard query request)
-            0x00i8, 0x01i8, // 1 question
-            0x00i8, 0x00i8, // dns request, so no answer rr's here of course
-            0x00i8, 0x00i8, // neither authority rr's
-            0x00i8, 0x00i8, // nor additional rr's
+            0xffu8, 0xffu8, // transaction id
+            0x01u8, 0x00u8, // flags (standard query request)
+            0x00u8, 0x01u8, // 1 question
+            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
+            0x00u8, 0x00u8, // neither authority rr's
+            0x00u8, 0x00u8, // nor additional rr's
         ];
+        unimplemented!()
     }
 }
