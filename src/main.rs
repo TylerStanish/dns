@@ -47,7 +47,7 @@ impl DnsHeader {
         let additional_count = BigEndian::read_u16(&bytes[10..12]);
         DnsHeader {
             tx_id,
-            is_response: flags[0] & 0x8 > 0,
+            is_response: flags[0] & 0x80 > 0,
             opcode: Self::opcode(&flags[0]),
             authoritative: (flags[0] & 0x04) > 0,
             truncated: flags[0] & 0x02 > 0,
@@ -89,7 +89,7 @@ mod tests {
     fn test_header_from_bytes() {
         let bytes = [
             0xffu8, 0xffu8, // transaction id
-            0x01u8, 0x00u8, // flags (standard query request)
+            0x00u8, 0x00u8, // flags (standard query request)
             0x00u8, 0x01u8, // 1 question
             0x00u8, 0x00u8, // dns request, so no answer rr's here of course
             0x00u8, 0x00u8, // neither authority rr's
@@ -98,8 +98,29 @@ mod tests {
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
-        expected_header.recursion_desired = true;
         expected_header.questions_count = 1;
+
+        assert_eq!(expected_header, actual_header);
+    }
+
+    #[test]
+    fn test_header_from_bytes_with_more_nonzero_flags() {
+        let bytes = [
+            0xffu8, 0xffu8, // transaction id
+            0x81u8, 0x85u8, // flags (standard query request)
+            0x00u8, 0x01u8, // 1 question
+            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
+            0x00u8, 0x00u8, // neither authority rr's
+            0x00u8, 0x00u8, // nor additional rr's
+        ];
+        let actual_header = DnsHeader::from_bytes(&bytes);
+        let mut expected_header = DnsHeader::new();
+        expected_header.tx_id = 0xffff;
+        expected_header.is_response = true;
+        expected_header.recursion_desired = true;
+        expected_header.recursion_available = true;
+        expected_header.questions_count = 1;
+        expected_header.response_code = 5;
 
         assert_eq!(expected_header, actual_header);
     }
