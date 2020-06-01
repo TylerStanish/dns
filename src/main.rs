@@ -65,9 +65,8 @@ impl DnsHeader {
     /// In the flags section, the opcode is
     /// .xxx x... .... ....
     fn opcode(byte: &u8) -> u8 {
-        let mut res = byte & 0x70;
-        res << 1;
-        res += byte & 0x08;
+        let mut res = byte & 0x78;
+        res >>= 3;
         res
     }
 }
@@ -116,6 +115,29 @@ mod tests {
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
+        expected_header.is_response = true;
+        expected_header.recursion_desired = true;
+        expected_header.recursion_available = true;
+        expected_header.questions_count = 1;
+        expected_header.response_code = 5;
+
+        assert_eq!(expected_header, actual_header);
+    }
+
+    #[test]
+    fn test_header_from_bytes_with_more_nonzero_flags_and_opcode() {
+        let bytes = [
+            0xffu8, 0xffu8, // transaction id
+            0xf9u8, 0x85u8, // flags (standard query request)
+            0x00u8, 0x01u8, // 1 question
+            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
+            0x00u8, 0x00u8, // neither authority rr's
+            0x00u8, 0x00u8, // nor additional rr's
+        ];
+        let actual_header = DnsHeader::from_bytes(&bytes);
+        let mut expected_header = DnsHeader::new();
+        expected_header.tx_id = 0xffff;
+        expected_header.opcode = 0x0f;
         expected_header.is_response = true;
         expected_header.recursion_desired = true;
         expected_header.recursion_available = true;
