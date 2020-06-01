@@ -71,6 +71,30 @@ impl DnsHeader {
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct DnsQuery {
+    name: String,
+    qtype: u16,
+    class: u16,
+}
+
+#[derive(Debug, PartialEq)]
+struct DnsAnswer {
+    name: String,
+    qtype: u16,
+    class: u16,
+    ttl: u32,
+    data_length: u16,
+    address: u32, // ipv4
+}
+
+#[derive(Debug, PartialEq)]
+struct DnsPacket {
+    header: DnsHeader,
+    queries: Vec<DnsQuery>,
+    answers: Vec<DnsAnswer>,
+}
+
 fn main() {
     let sock = UdpSocket::bind("0.0.0.0:4567").expect("Could not create server");
     loop {
@@ -143,6 +167,25 @@ mod tests {
         expected_header.recursion_available = true;
         expected_header.questions_count = 1;
         expected_header.response_code = 5;
+
+        assert_eq!(expected_header, actual_header);
+    }
+
+    #[test]
+    /// mostly testing for endianness
+    fn test_header_from_bytes_with_nonzero_counts() {
+        let bytes = [
+            0x00u8, 0x00u8, // transaction id
+            0x00u8, 0x00u8, // flags (standard query request)
+            0x00u8, 0x00u8, // 0 questions
+            0x00u8, 0x01u8, // 1 answer rr
+            0x01u8, 0x00u8, // 256 authority rr's
+            0x00u8, 0x00u8, // additional rr's
+        ];
+        let actual_header = DnsHeader::from_bytes(&bytes);
+        let mut expected_header = DnsHeader::new();
+        expected_header.answers_count = 1;
+        expected_header.authority_count = 256;
 
         assert_eq!(expected_header, actual_header);
     }
