@@ -78,6 +78,33 @@ struct DnsQuery {
     class: u16,
 }
 
+impl DnsQuery {
+    pub fn new() -> Self {
+        DnsQuery {
+            name: String::new(),
+            qtype: 0,
+            class: 0,
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        let mut curr_byte = 0;
+        let mut name = String::new();
+        while bytes[curr_byte] != 0 {
+            name.push(bytes[curr_byte] as char);
+            curr_byte += 1;
+        }
+        curr_byte += 1; // consume null terminator
+        let qtype = BigEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
+        let class = BigEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
+        DnsQuery {
+            name,
+            qtype,
+            class,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct DnsAnswer {
     name: String,
@@ -188,6 +215,23 @@ mod tests {
         expected_header.authority_count = 256;
 
         assert_eq!(expected_header, actual_header);
+    }
+
+    #[test]
+    /// mostly testing for endianness
+    fn test_query_from_bytes() {
+        let bytes = [
+            0x66u8, 0x6fu8, 0x6fu8, 0x2eu8, 0x63u8, 0x6fu8, 0x6du8, 0x00u8, // foo.com
+            0x00u8, 0x01u8, // a record
+            0x00u8, 0x01u8, // class
+        ];
+        let actual_query = DnsQuery::from_bytes(&bytes);
+        let mut expected_query = DnsQuery::new();
+        expected_query.name = "foo.com".to_owned();
+        expected_query.qtype = 1;
+        expected_query.class = 1;
+
+        assert_eq!(expected_query, actual_query);
     }
 
     #[test]
