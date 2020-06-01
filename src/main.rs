@@ -138,12 +138,12 @@ mod tests {
     #[test]
     fn test_header_from_bytes() {
         let bytes = [
-            0xffu8, 0xffu8, // transaction id
-            0x00u8, 0x00u8, // flags (standard query request)
-            0x00u8, 0x01u8, // 1 question
-            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
-            0x00u8, 0x00u8, // neither authority rr's
-            0x00u8, 0x00u8, // nor additional rr's
+            0xffu8, 0xff, // transaction id
+            0x00, 0x00, // flags (standard query request)
+            0x00, 0x01, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
         ];
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
@@ -156,12 +156,12 @@ mod tests {
     #[test]
     fn test_header_from_bytes_with_more_nonzero_flags() {
         let bytes = [
-            0xffu8, 0xffu8, // transaction id
-            0x81u8, 0x85u8, // flags (standard query request)
-            0x00u8, 0x01u8, // 1 question
-            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
-            0x00u8, 0x00u8, // neither authority rr's
-            0x00u8, 0x00u8, // nor additional rr's
+            0xff, 0xff, // transaction id
+            0x81, 0x85, // flags (standard query request)
+            0x00, 0x01, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
         ];
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
@@ -178,12 +178,12 @@ mod tests {
     #[test]
     fn test_header_from_bytes_with_more_nonzero_flags_and_opcode() {
         let bytes = [
-            0xffu8, 0xffu8, // transaction id
-            0xf9u8, 0x85u8, // flags (standard query request)
-            0x00u8, 0x01u8, // 1 question
-            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
-            0x00u8, 0x00u8, // neither authority rr's
-            0x00u8, 0x00u8, // nor additional rr's
+            0xffu8, 0xff, // transaction id
+            0xf9, 0x85, // flags (standard query request)
+            0x00, 0x01, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
         ];
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
@@ -202,12 +202,12 @@ mod tests {
     /// mostly testing for endianness
     fn test_header_from_bytes_with_nonzero_counts() {
         let bytes = [
-            0x00u8, 0x00u8, // transaction id
-            0x00u8, 0x00u8, // flags (standard query request)
-            0x00u8, 0x00u8, // 0 questions
-            0x00u8, 0x01u8, // 1 answer rr
-            0x01u8, 0x00u8, // 256 authority rr's
-            0x00u8, 0x00u8, // additional rr's
+            0x00u8, 0x00, // transaction id
+            0x00, 0x00, // flags (standard query request)
+            0x00, 0x00, // 0 questions
+            0x00, 0x01, // 1 answer rr
+            0x01, 0x00, // 256 authority rr's
+            0x00, 0x00, // additional rr's
         ];
         let actual_header = DnsHeader::from_bytes(&bytes);
         let mut expected_header = DnsHeader::new();
@@ -221,9 +221,9 @@ mod tests {
     /// mostly testing for endianness
     fn test_query_from_bytes() {
         let bytes = [
-            0x66u8, 0x6fu8, 0x6fu8, 0x2eu8, 0x63u8, 0x6fu8, 0x6du8, 0x00u8, // foo.com
-            0x00u8, 0x01u8, // a record
-            0x00u8, 0x01u8, // class
+            0x66u8, 0x6f, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
         ];
         let actual_query = DnsQuery::from_bytes(&bytes);
         let mut expected_query = DnsQuery::new();
@@ -237,12 +237,12 @@ mod tests {
     #[test]
     fn test_request_from_bytes() {
         let bytes = [
-            0xffu8, 0xffu8, // transaction id
-            0x01u8, 0x00u8, // flags (standard query request)
-            0x00u8, 0x01u8, // 1 question
-            0x00u8, 0x00u8, // dns request, so no answer rr's here of course
-            0x00u8, 0x00u8, // neither authority rr's
-            0x00u8, 0x00u8, // nor additional rr's
+            0xffu8, 0xff, // transaction id
+            0x01, 0x00, // flags (standard query request)
+            0x00, 0x01, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
         ];
         unimplemented!()
     }
