@@ -87,9 +87,15 @@ impl DnsQuery {
         }
     }
 
+    /// Remember according to the rfc:
+    /// 'each label consists of a length octet followed by that
+    /// number of octets.  The domain name terminates with the
+    /// zero length octet for the null label of the root.  Note
+    /// that this field may be an odd number of octets; no
+    /// padding is used.'
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let mut curr_byte = 0;
-        let mut name = String::new();
+        let mut name = String::with_capacity(bytes[0] as usize);
+        let mut curr_byte = 1;
         while bytes[curr_byte] != 0 {
             name.push(bytes[curr_byte] as char);
             curr_byte += 1;
@@ -120,6 +126,12 @@ struct DnsPacket {
     header: DnsHeader,
     queries: Vec<DnsQuery>,
     answers: Vec<DnsAnswer>,
+}
+
+impl DnsPacket {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        unimplemented!()
+    }
 }
 
 fn main() {
@@ -221,6 +233,24 @@ mod tests {
     /// mostly testing for endianness
     fn test_query_from_bytes() {
         let bytes = [
+            0x08, // length of 'foo.com'
+            0x66u8, 0x6f, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+        ];
+        let actual_query = DnsQuery::from_bytes(&bytes);
+        let mut expected_query = DnsQuery::new();
+        expected_query.name = "foo.com".to_owned();
+        expected_query.qtype = 1;
+        expected_query.class = 1;
+
+        assert_eq!(expected_query, actual_query);
+    }
+
+    #[test]
+    fn test_query_from_bytes_multiple_queries() {
+        let bytes = [
+            0x08, // length of 'foo.com'
             0x66u8, 0x6f, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x00, // foo.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
