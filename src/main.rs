@@ -308,6 +308,25 @@ mod tests {
     }
 
     #[test]
+    fn test_query_from_bytes_with_subdomain() {
+        let bytes = [
+            0x03u8, // length of 'foo'
+            0x66, 0x6f, 0x6f, 
+            0x03, // length of 'bar'
+            0x62, 0x61, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.bar.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+        ];
+        let actual_query = DnsQuery::from_bytes(&bytes);
+        let mut expected_query = DnsQuery::new();
+        expected_query.name = "foo.bar.com".to_owned();
+        expected_query.qtype = 1;
+        expected_query.class = 1;
+
+        assert_eq!(expected_query, actual_query);
+    }
+
+    #[test]
     fn test_request_from_bytes_zero_questions() {
         let bytes = [
             0x00u8, 0x00, // transaction id
