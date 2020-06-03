@@ -94,9 +94,17 @@ impl DnsQuery {
     /// that this field may be an odd number of octets; no
     /// padding is used.'
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let mut name = String::with_capacity(bytes[0] as usize);
+        let name_len = bytes[0];
+        let mut name = String::with_capacity(name_len as usize);
         let mut curr_byte = 1;
-        while bytes[curr_byte] != 0 {
+        for _ in 0..name_len {
+            name.push(bytes[curr_byte] as char);
+            curr_byte += 1;
+        }
+        let ext_len = bytes[curr_byte];
+        curr_byte += 1; // consume the length of the part after the last '.'
+        name.push('.');
+        for _ in 0..ext_len {
             name.push(bytes[curr_byte] as char);
             curr_byte += 1;
         }
@@ -121,6 +129,19 @@ struct DnsAnswer {
     address: u32, // ipv4
 }
 
+impl DnsAnswer {
+    pub fn new() -> Self {
+        DnsAnswer {
+            name: String::new(),
+            qtype: 0,
+            class: 0,
+            ttl: 0,
+            data_length: 0,
+            address: 0,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 struct DnsPacket {
     header: DnsHeader,
@@ -129,8 +150,30 @@ struct DnsPacket {
 }
 
 impl DnsPacket {
+    pub fn new() -> Self {
+        DnsPacket {
+            header: DnsHeader::new(),
+            queries: Vec::new(),
+            answers: Vec::new(),
+        }
+    }
+
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        unimplemented!()
+        let header = DnsHeader::from_bytes(&bytes[..12]);
+        // TODO check if the header says this is a request or response
+        // If from response, then why are we even calling this function?
+        let mut queries = Vec::with_capacity(header.questions_count as usize);
+        let mut curr_byte = 13;
+        for _ in 0..header.questions_count {
+            let num_bytes = bytes[curr_byte as usize];
+            queries.push(DnsQuery::from_bytes(&bytes[curr_byte as usize..]));
+            curr_byte += num_bytes + 1; // add 1 for 0 octet at end
+        }
+        DnsPacket {
+            header,
+            queries,
+            answers: Vec::new(),
+        }
     }
 }
 
@@ -233,8 +276,8 @@ mod tests {
     /// mostly testing for endianness
     fn test_query_from_bytes() {
         let bytes = [
-            0x08, // length of 'foo.com'
-            0x66u8, 0x6f, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x03, // length of 'foo'
+            0x66u8, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
@@ -250,8 +293,8 @@ mod tests {
     #[test]
     fn test_query_from_bytes_multiple_queries() {
         let bytes = [
-            0x08, // length of 'foo.com'
-            0x66u8, 0x6f, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x03, // length of 'foo'
+            0x66u8, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
@@ -265,7 +308,50 @@ mod tests {
     }
 
     #[test]
-    fn test_request_from_bytes() {
+    fn test_request_from_bytes_zero_questions() {
+        let bytes = [
+            0x00u8, 0x00, // transaction id
+            0x01, 0x00, // flags (standard query request)
+            0x00, 0x00, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
+        ];
+        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let mut expected_packet = DnsPacket::new();
+        expected_packet.header = DnsHeader::new();
+
+        assert_eq!(expected_packet, actual_packet);
+    }
+
+    #[test]
+    fn test_request_from_bytes_with_one_question() {
+        let bytes = [
+            0x00u8, 0x00, // transaction id
+            0x01, 0x00, // flags (standard query request)
+            0x00, 0x01, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
+            0x03, // length of 'foo'
+            0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+        ];
+        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let mut expected_packet = DnsPacket::new();
+        let mut query = DnsQuery::new();
+        query.name = "foo.com".to_owned();
+        query.qtype = 1;
+        query.class = 1;
+        expected_packet.queries = vec![query];
+        expected_packet.answers = Vec::new();
+
+        assert_eq!(expected_packet, actual_packet);
+    }
+
+    #[test]
+    fn test_request_from_bytes_with_many_questions() {
         let bytes = [
             0xffu8, 0xff, // transaction id
             0x01, 0x00, // flags (standard query request)
@@ -273,7 +359,29 @@ mod tests {
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
+            // queries
+            0x03, // length of 'foo'
+            0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+            0x06, // length of 'purdue'
+            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, // purdue.edu
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
         ];
-        unimplemented!()
+        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let mut expected_packet = DnsPacket::new();
+        let mut foo_query = DnsQuery::new();
+        foo_query.name = "foo.com".to_owned();
+        foo_query.qtype = 2;
+        foo_query.class = 1;
+        let mut purdue_query = DnsQuery::new();
+        purdue_query.name = "foo.com".to_owned();
+        purdue_query.qtype = 2;
+        purdue_query.class = 1;
+        expected_packet.queries = vec![purdue_query];
+        expected_packet.answers = Vec::new();
+
+        assert_eq!(expected_packet, actual_packet);
     }
 }
