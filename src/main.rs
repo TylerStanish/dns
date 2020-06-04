@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::net::{UdpSocket};
+use std::net::UdpSocket;
 use byteorder::{ByteOrder, BigEndian};
+use resize_slice::ResizeSlice;
 
 #[derive(Debug, PartialEq)]
 struct DnsHeader {
@@ -87,30 +88,38 @@ impl DnsQuery {
         }
     }
 
+    /// This function modifies the `bytes` parameter so the caller of this
+    /// function can continue off at the slice's zero index
+    ///
     /// Remember according to the rfc:
     /// 'each label consists of a length octet followed by that
     /// number of octets.  The domain name terminates with the
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_bytes(mut bytes: &mut [u8]) -> Self {
         let name_len = bytes[0];
         let mut name = String::with_capacity(name_len as usize);
-        let mut curr_byte = 1;
-        for _ in 0..name_len {
-            name.push(bytes[curr_byte] as char);
-            curr_byte += 1;
+        let mut curr_byte = 0;
+        loop {
+            let len = bytes[curr_byte];
+            curr_byte += 1; // consume the size byte
+            for i in curr_byte..(curr_byte as u8 + len) as usize {
+                name.push(bytes[i] as char);
+            }
+            curr_byte += len as usize;
+            if bytes[curr_byte] == 0 {
+                break
+            }
+            name.push('.');
         }
-        let ext_len = bytes[curr_byte];
-        curr_byte += 1; // consume the length of the part after the last '.'
-        name.push('.');
-        for _ in 0..ext_len {
-            name.push(bytes[curr_byte] as char);
-            curr_byte += 1;
-        }
-        curr_byte += 1; // consume null terminator
+        curr_byte += 1; // consume zero octet
         let qtype = BigEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
         let class = BigEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
+        // resize the slice so the caller of this function can continue
+        // and not have to do any arithmetic or handle a tuple return type
+        // or extra pointer variable
+        bytes.resize_from(curr_byte+4);
         DnsQuery {
             name,
             qtype,
@@ -158,16 +167,14 @@ impl DnsPacket {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_bytes(mut bytes: &mut [u8]) -> Self {
         let header = DnsHeader::from_bytes(&bytes[..12]);
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
-        let mut curr_byte = 13;
+        bytes.resize_from(13);
         for _ in 0..header.questions_count {
-            let num_bytes = bytes[curr_byte as usize];
-            queries.push(DnsQuery::from_bytes(&bytes[curr_byte as usize..]));
-            curr_byte += num_bytes + 1; // add 1 for 0 octet at end
+            queries.push(DnsQuery::from_bytes(bytes));
         }
         DnsPacket {
             header,
@@ -192,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_header_from_bytes() {
-        let bytes = [
+        let mut bytes = [
             0xffu8, 0xff, // transaction id
             0x00, 0x00, // flags (standard query request)
             0x00, 0x01, // 1 question
@@ -200,7 +207,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&bytes);
+        let actual_header = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.questions_count = 1;
@@ -210,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_header_from_bytes_with_more_nonzero_flags() {
-        let bytes = [
+        let mut bytes = [
             0xff, 0xff, // transaction id
             0x81, 0x85, // flags (standard query request)
             0x00, 0x01, // 1 question
@@ -218,7 +225,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&bytes);
+        let actual_header = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.is_response = true;
@@ -232,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_header_from_bytes_with_more_nonzero_flags_and_opcode() {
-        let bytes = [
+        let mut bytes = [
             0xffu8, 0xff, // transaction id
             0xf9, 0x85, // flags (standard query request)
             0x00, 0x01, // 1 question
@@ -240,7 +247,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&bytes);
+        let actual_header = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.opcode = 0x0f;
@@ -256,7 +263,7 @@ mod tests {
     #[test]
     /// mostly testing for endianness
     fn test_header_from_bytes_with_nonzero_counts() {
-        let bytes = [
+        let mut bytes = [
             0x00u8, 0x00, // transaction id
             0x00, 0x00, // flags (standard query request)
             0x00, 0x00, // 0 questions
@@ -264,7 +271,7 @@ mod tests {
             0x01, 0x00, // 256 authority rr's
             0x00, 0x00, // additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&bytes);
+        let actual_header = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.answers_count = 1;
         expected_header.authority_count = 256;
@@ -275,13 +282,13 @@ mod tests {
     #[test]
     /// mostly testing for endianness
     fn test_query_from_bytes() {
-        let bytes = [
+        let mut bytes = [
             0x03, // length of 'foo'
             0x66u8, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&bytes);
+        let actual_query = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = 1;
@@ -292,13 +299,13 @@ mod tests {
 
     #[test]
     fn test_query_from_bytes_multiple_queries() {
-        let bytes = [
+        let mut bytes = [
             0x03, // length of 'foo'
             0x66u8, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&bytes);
+        let actual_query = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = 1;
@@ -309,7 +316,7 @@ mod tests {
 
     #[test]
     fn test_query_from_bytes_with_subdomain() {
-        let bytes = [
+        let mut bytes = [
             0x03u8, // length of 'foo'
             0x66, 0x6f, 0x6f, 
             0x03, // length of 'bar'
@@ -317,7 +324,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&bytes);
+        let actual_query = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.bar.com".to_owned();
         expected_query.qtype = 1;
@@ -328,7 +335,7 @@ mod tests {
 
     #[test]
     fn test_request_from_bytes_zero_questions() {
-        let bytes = [
+        let mut bytes = [
             0x00u8, 0x00, // transaction id
             0x01, 0x00, // flags (standard query request)
             0x00, 0x00, // 1 question
@@ -336,7 +343,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let actual_packet = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         expected_packet.header = DnsHeader::new();
 
@@ -345,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_request_from_bytes_with_one_question() {
-        let bytes = [
+        let mut bytes = [
             0x00u8, 0x00, // transaction id
             0x01, 0x00, // flags (standard query request)
             0x00, 0x01, // 1 question
@@ -357,7 +364,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let actual_packet = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         let mut query = DnsQuery::new();
         query.name = "foo.com".to_owned();
@@ -371,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_request_from_bytes_with_many_questions() {
-        let bytes = [
+        let mut bytes = [
             0xffu8, 0xff, // transaction id
             0x01, 0x00, // flags (standard query request)
             0x00, 0x01, // 1 question
@@ -388,7 +395,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_packet = DnsPacket::from_bytes(&bytes);
+        let actual_packet = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         let mut foo_query = DnsQuery::new();
         foo_query.name = "foo.com".to_owned();
