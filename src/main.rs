@@ -98,6 +98,10 @@ impl DnsQuery {
     /// that this field may be an odd number of octets; no
     /// padding is used.'
     pub fn from_bytes(mut bytes: &mut [u8]) -> Self {
+        //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
+        //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
+
+
         let name_len = bytes[0];
         let mut name = String::with_capacity(name_len as usize);
         let mut curr_byte = 0;
@@ -111,6 +115,7 @@ impl DnsQuery {
             if bytes[curr_byte] == 0 {
                 break
             }
+            println!("{:?}", name);
             name.push('.');
         }
         curr_byte += 1; // consume zero octet
@@ -172,7 +177,7 @@ impl DnsPacket {
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
-        bytes.resize_from(13);
+        bytes.resize_from(12);
         for _ in 0..header.questions_count {
             queries.push(DnsQuery::from_bytes(bytes));
         }
@@ -196,6 +201,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_header_from_bytes() {
@@ -320,7 +326,7 @@ mod tests {
             0x03u8, // length of 'foo'
             0x66, 0x6f, 0x6f, 
             0x03, // length of 'bar'
-            0x62, 0x61, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.bar.com
+            0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.bar.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
@@ -337,7 +343,7 @@ mod tests {
     fn test_request_from_bytes_zero_questions() {
         let mut bytes = [
             0x00u8, 0x00, // transaction id
-            0x01, 0x00, // flags (standard query request)
+            0x00, 0x00, // flags (standard query request)
             0x00, 0x00, // 1 question
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
@@ -354,7 +360,7 @@ mod tests {
     fn test_request_from_bytes_with_one_question() {
         let mut bytes = [
             0x00u8, 0x00, // transaction id
-            0x01, 0x00, // flags (standard query request)
+            0x00, 0x00, // flags (standard query request)
             0x00, 0x01, // 1 question
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
@@ -366,6 +372,7 @@ mod tests {
         ];
         let actual_packet = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
+        expected_packet.header.questions_count = 1;
         let mut query = DnsQuery::new();
         query.name = "foo.com".to_owned();
         query.qtype = 1;
@@ -379,9 +386,9 @@ mod tests {
     #[test]
     fn test_request_from_bytes_with_many_questions() {
         let mut bytes = [
-            0xffu8, 0xff, // transaction id
-            0x01, 0x00, // flags (standard query request)
-            0x00, 0x01, // 1 question
+            0x00u8, 0x00, // transaction id
+            0x00, 0x00, // flags (standard query request)
+            0x00, 0x02, // 2 questions
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
@@ -397,15 +404,16 @@ mod tests {
         ];
         let actual_packet = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
+        expected_packet.header.questions_count = 2;
         let mut foo_query = DnsQuery::new();
         foo_query.name = "foo.com".to_owned();
-        foo_query.qtype = 2;
+        foo_query.qtype = 1;
         foo_query.class = 1;
         let mut purdue_query = DnsQuery::new();
         purdue_query.name = "foo.com".to_owned();
-        purdue_query.qtype = 2;
+        purdue_query.qtype = 1;
         purdue_query.class = 1;
-        expected_packet.queries = vec![purdue_query];
+        expected_packet.queries = vec![foo_query, purdue_query];
         expected_packet.answers = Vec::new();
 
         assert_eq!(expected_packet, actual_packet);
