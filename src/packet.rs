@@ -36,6 +36,14 @@ impl DnsPacket {
         }
     }
 
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut res = Vec::new();
+        res.append(&mut self.header.to_bytes().to_vec());
+        res.append(&mut self.queries.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
+        res.append(&mut self.answers.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
+        res
+    }
+
     /// Given `self` is a request packet, `results()` will return the packet
     /// to send back
     pub fn results(self, cache: HashMap<String, String>) -> Self {
