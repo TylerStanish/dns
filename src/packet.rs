@@ -1,4 +1,3 @@
-use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
 use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
 use crate::query::DnsQuery;

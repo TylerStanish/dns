@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
+use byteorder::{NetworkEndian, WriteBytesExt};
 use crate::serialization;
 
 

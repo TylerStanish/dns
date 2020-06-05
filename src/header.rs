@@ -1,4 +1,4 @@
-use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
+use byteorder::{ByteOrder, NetworkEndian};
 
 #[derive(Debug, PartialEq)]
 pub struct DnsHeader {
