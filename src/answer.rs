@@ -1,5 +1,5 @@
 use byteorder::{NetworkEndian, WriteBytesExt};
-use crate::serialization;
+use crate::serialization::{serialize_domain_to_bytes, ToBytes};
 
 
 #[derive(Debug, PartialEq)]
@@ -24,9 +24,12 @@ impl DnsAnswer {
         }
     }
 
-    pub fn to_bytes(self) -> Vec<u8> {
+}
+
+impl ToBytes for DnsAnswer {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut res = Vec::new();
-        res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
+        res.append(&mut serialize_domain_to_bytes(&self.name));
         res.write_u16::<NetworkEndian>(self.qtype).unwrap(); // TODO don't unwrap, handle error, return error response
         res.write_u16::<NetworkEndian>(self.class).unwrap();
         res.write_u32::<NetworkEndian>(self.ttl).unwrap();
@@ -35,7 +38,6 @@ impl DnsAnswer {
         res
     }
 }
-
 
 #[cfg(test)]
 mod tests {

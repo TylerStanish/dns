@@ -3,6 +3,7 @@ use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
 use crate::query::DnsQuery;
 use crate::header::DnsHeader;
+use crate::serialization::{FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq)]
 pub struct DnsPacket {
@@ -20,8 +21,28 @@ impl DnsPacket {
         }
     }
 
-    pub fn from_bytes(mut bytes: &mut [u8]) -> Self {
-        let header = DnsHeader::from_bytes(&bytes[..12]);
+    /// Given `self` is a request packet, `results()` will return the packet
+    /// to send back
+    pub fn results(self, cache: HashMap<String, String>) -> Self {
+        match self.header.opcode {
+            0 => self.standard_query(cache),
+            1 => self.inverse_query(),
+            _ => panic!(),
+        }
+    }
+
+    fn standard_query(&self, cache: HashMap<String, String>) -> Self {
+        return DnsPacket::new();
+    }
+
+    fn inverse_query(&self) -> Self {
+        unimplemented!()
+    }
+}
+
+impl FromBytes for DnsPacket {
+    fn from_bytes(mut bytes: &mut [u8]) -> Self {
+        let header = DnsHeader::from_bytes(&mut bytes[..12]);
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
@@ -35,30 +56,15 @@ impl DnsPacket {
             answers: Vec::new(),
         }
     }
+}
 
-    pub fn to_bytes(self) -> Vec<u8> {
+impl ToBytes for DnsPacket {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut res = Vec::new();
         res.append(&mut self.header.to_bytes().to_vec());
         res.append(&mut self.queries.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
         res.append(&mut self.answers.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
         res
-    }
-
-    /// Given `self` is a request packet, `results()` will return the packet
-    /// to send back
-    pub fn results(self, cache: HashMap<String, String>) -> Self {
-        match self.header.opcode {
-            0 => self.standard_query(cache),
-            1 => self.inverse_query(),
-        }
-    }
-
-    fn standard_query(&self, cache: HashMap<String, String>) -> Self {
-        return DnsPacket::new();
-    }
-
-    fn inverse_query(&self) -> Self {
-        unimplemented!()
     }
 }
 
@@ -164,7 +170,7 @@ mod tests {
             0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, // purdue.edu
             0x00, 0x01, // a record
             0x00, 0x01, // class
-        ];
-        assert_eq!(DnsPacket::from_bytes(&mut bytes).to_bytes(), bytes.to_vec());
+        ].to_vec();
+        assert_eq!(DnsPacket::from_bytes(&mut bytes).to_bytes().to_vec(), bytes);
     }
 }

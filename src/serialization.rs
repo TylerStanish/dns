@@ -1,3 +1,12 @@
+pub trait FromBytes {
+    fn from_bytes(bytes: &mut [u8]) -> Self;
+}
+
+pub trait ToBytes {
+    fn to_bytes(&self) -> Vec<u8>;
+}
+
+
 pub fn serialize_domain_to_bytes(domain: &str) -> Vec<u8> {
     let mut res = Vec::new();
     let split: Vec<&str> = domain.split('.').collect();

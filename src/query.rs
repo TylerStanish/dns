@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
 use resize_slice::ResizeSlice;
-use crate::serialization;
+use crate::serialization::{serialize_domain_to_bytes, FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq)]
 pub struct DnsQuery {
@@ -18,6 +18,9 @@ impl DnsQuery {
         }
     }
 
+}
+
+impl FromBytes for DnsQuery {
     /// This function modifies the `bytes` parameter so the caller of this
     /// function can continue off at the slice's zero index
     ///
@@ -27,7 +30,7 @@ impl DnsQuery {
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    pub fn from_bytes(mut bytes: &mut [u8]) -> Self {
+    fn from_bytes(mut bytes: &mut [u8]) -> Self {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
@@ -60,10 +63,12 @@ impl DnsQuery {
             class,
         }
     }
+}
 
-    pub fn to_bytes(self) -> Vec<u8> {
+impl ToBytes for DnsQuery {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
-        res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
+        res.append(&mut serialize_domain_to_bytes(&self.name));
         res.write_u16::<NetworkEndian>(self.qtype).unwrap();
         res.write_u16::<NetworkEndian>(self.class).unwrap();
         res

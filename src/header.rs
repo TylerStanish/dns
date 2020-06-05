@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, NetworkEndian};
+use crate::serialization::{FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq)]
 pub struct DnsHeader {
@@ -36,7 +37,17 @@ impl DnsHeader {
         }
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    /// In the flags section, the opcode is
+    /// .xxx x... .... ....
+    fn opcode(byte: &u8) -> u8 {
+        let mut res = byte & 0x78;
+        res >>= 3;
+        res
+    }
+}
+
+impl FromBytes for DnsHeader {
+    fn from_bytes(bytes: &mut [u8]) -> Self {
         let tx_id = NetworkEndian::read_u16(bytes);
         let flags = &bytes[2..4];
         let questions_count = NetworkEndian::read_u16(&bytes[4..6]);
@@ -59,8 +70,10 @@ impl DnsHeader {
             additional_count,
         }
     }
+}
 
-    pub fn to_bytes(self) -> [u8; 12] {
+impl ToBytes for DnsHeader {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut res: [u8; 12] = [0; 12];
         NetworkEndian::write_u16(&mut res, self.tx_id);
         let mut flags = 0u16;
@@ -85,16 +98,9 @@ impl DnsHeader {
         NetworkEndian::write_u16(&mut res[6..], self.answers_count);
         NetworkEndian::write_u16(&mut res[8..], self.authority_count);
         NetworkEndian::write_u16(&mut res[10..], self.additional_count);
-        res
+        res.to_vec()
     }
 
-    /// In the flags section, the opcode is
-    /// .xxx x... .... ....
-    fn opcode(byte: &u8) -> u8 {
-        let mut res = byte & 0x78;
-        res >>= 3;
-        res
-    }
 }
 
 #[cfg(test)]
@@ -189,7 +195,7 @@ mod tests {
         let header = DnsHeader::new();
         let actual_bytes = header.to_bytes();
         let expected_bytes = [0u8; 12];
-        assert_eq!(expected_bytes, actual_bytes);
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
 
     #[test]
@@ -215,7 +221,7 @@ mod tests {
             0xab, 0xcd,
             0xab, 0xcd,
         ];
-        assert_eq!(expected_bytes, actual_bytes);
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
 
 }
