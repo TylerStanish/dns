@@ -82,7 +82,6 @@ impl DnsHeader {
         flags += self.z as u16;
         flags <<= 4;
         flags += self.response_code as u16;
-        println!("{:x}", flags);
         res[2] = ((flags & 0xff00) >> 8) as u8;
         res[3] = (flags & 0x00ff) as u8;
         BigEndian::write_u16(&mut res[4..], self.questions_count);
@@ -144,7 +143,6 @@ impl DnsQuery {
             if bytes[curr_byte] == 0 {
                 break
             }
-            println!("{:?}", name);
             name.push('.');
         }
         curr_byte += 1; // consume zero octet
@@ -159,6 +157,23 @@ impl DnsQuery {
             qtype,
             class,
         }
+    }
+
+    pub fn to_bytes(self) -> Vec<u8> {
+        let mut res: Vec<u8> = Vec::new();
+        let split: Vec<&str> = self.name.split('.').collect();
+        if split.len() > 1 {
+            for word in split {
+                res.push(word.len() as u8);
+                res.append(&mut Vec::from(word.as_bytes().clone()));
+                res.push(0);
+            }
+        }
+        res.push(((self.qtype & 0xff00) >> 8) as u8);
+        res.push((self.qtype & 0x00ff) as u8);
+        res.push(((self.class & 0xff00) >> 8) as u8);
+        res.push((self.class & 0x00ff) as u8);
+        res
     }
 }
 
@@ -479,6 +494,14 @@ mod tests {
             0xab, 0xcd,
             0xab, 0xcd,
         ];
+        assert_eq!(expected_bytes, actual_bytes);
+    }
+
+    #[test]
+    fn test_dns_query_to_bytes_all_zero() {
+        let query = DnsQuery::new();
+        let actual_bytes = query.to_bytes();
+        let expected_bytes = [0x00u8, 0x00, 0x00, 0x00].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
 }
