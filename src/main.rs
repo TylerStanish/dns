@@ -3,6 +3,8 @@ use std::net::UdpSocket;
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use resize_slice::ResizeSlice;
 
+mod serialization;
+
 #[derive(Debug, PartialEq)]
 struct DnsHeader {
     tx_id: u16,
@@ -161,14 +163,7 @@ impl DnsQuery {
 
     pub fn to_bytes(self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
-        let split: Vec<&str> = self.name.split('.').collect();
-        if split.len() > 1 {
-            for word in split {
-                res.push(word.len() as u8);
-                res.append(&mut Vec::from(word.as_bytes().clone()));
-                res.push(0);
-            }
-        }
+        res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
         res.push(((self.qtype & 0xff00) >> 8) as u8);
         res.push((self.qtype & 0x00ff) as u8);
         res.push(((self.class & 0xff00) >> 8) as u8);
@@ -197,6 +192,10 @@ impl DnsAnswer {
             data_length: 0,
             address: 0,
         }
+    }
+
+    pub fn to_bytes(self) -> Vec<u8> {
+        unimplemented!()
     }
 }
 
