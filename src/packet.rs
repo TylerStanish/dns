@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
 use crate::query::DnsQuery;
@@ -5,9 +6,9 @@ use crate::header::DnsHeader;
 
 #[derive(Debug, PartialEq)]
 pub struct DnsPacket {
-    header: DnsHeader,
-    queries: Vec<DnsQuery>,
-    answers: Vec<DnsAnswer>,
+    pub header: DnsHeader,
+    pub queries: Vec<DnsQuery>,
+    pub answers: Vec<DnsAnswer>,
 }
 
 impl DnsPacket {
@@ -33,6 +34,23 @@ impl DnsPacket {
             queries,
             answers: Vec::new(),
         }
+    }
+
+    /// Given `self` is a request packet, `results()` will return the packet
+    /// to send back
+    pub fn results(self, cache: HashMap<String, String>) -> Self {
+        match self.header.opcode {
+            0 => self.standard_query(cache),
+            1 => self.inverse_query(),
+        }
+    }
+
+    fn standard_query(&self, cache: HashMap<String, String>) -> Self {
+        return DnsPacket::new();
+    }
+
+    fn inverse_query(&self) -> Self {
+        unimplemented!()
     }
 }
 

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::UdpSocket;
 
 mod answer;
@@ -11,5 +12,8 @@ fn main() {
     loop {
         let mut buf = [0; 1024];
         let nread = sock.recv(&mut buf).unwrap();
+        let packet = packet::DnsPacket::from_bytes(&mut buf);
+        let result = packet.results(HashMap::new());
+        sock.send(result.to_bytes());
     }
 }
