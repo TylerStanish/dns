@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::UdpSocket;
-use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
+use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
 use resize_slice::ResizeSlice;
 
 mod serialization;
@@ -42,12 +42,12 @@ impl DnsHeader {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let tx_id = BigEndian::read_u16(bytes);
+        let tx_id = NetworkEndian::read_u16(bytes);
         let flags = &bytes[2..4];
-        let questions_count = BigEndian::read_u16(&bytes[4..6]);
-        let answers_count = BigEndian::read_u16(&bytes[6..8]);
-        let authority_count = BigEndian::read_u16(&bytes[8..10]);
-        let additional_count = BigEndian::read_u16(&bytes[10..12]);
+        let questions_count = NetworkEndian::read_u16(&bytes[4..6]);
+        let answers_count = NetworkEndian::read_u16(&bytes[6..8]);
+        let authority_count = NetworkEndian::read_u16(&bytes[8..10]);
+        let additional_count = NetworkEndian::read_u16(&bytes[10..12]);
         DnsHeader {
             tx_id,
             is_response: flags[0] & 0x80 > 0,
@@ -67,7 +67,7 @@ impl DnsHeader {
 
     pub fn to_bytes(self) -> [u8; 12] {
         let mut res: [u8; 12] = [0; 12];
-        BigEndian::write_u16(&mut res, self.tx_id);
+        NetworkEndian::write_u16(&mut res, self.tx_id);
         let mut flags = 0u16;
         flags = self.is_response as u16;
         flags <<= 4;
@@ -86,10 +86,10 @@ impl DnsHeader {
         flags += self.response_code as u16;
         res[2] = ((flags & 0xff00) >> 8) as u8;
         res[3] = (flags & 0x00ff) as u8;
-        BigEndian::write_u16(&mut res[4..], self.questions_count);
-        BigEndian::write_u16(&mut res[6..], self.answers_count);
-        BigEndian::write_u16(&mut res[8..], self.authority_count);
-        BigEndian::write_u16(&mut res[10..], self.additional_count);
+        NetworkEndian::write_u16(&mut res[4..], self.questions_count);
+        NetworkEndian::write_u16(&mut res[6..], self.answers_count);
+        NetworkEndian::write_u16(&mut res[8..], self.authority_count);
+        NetworkEndian::write_u16(&mut res[10..], self.additional_count);
         res
     }
 
@@ -148,8 +148,8 @@ impl DnsQuery {
             name.push('.');
         }
         curr_byte += 1; // consume zero octet
-        let qtype = BigEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
-        let class = BigEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
+        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
+        let class = NetworkEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
         // resize the slice so the caller of this function can continue
         // and not have to do any arithmetic or handle a tuple return type
         // or extra pointer variable
@@ -197,11 +197,11 @@ impl DnsAnswer {
     pub fn to_bytes(self) -> Vec<u8> {
         let mut res = Vec::new();
         res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
-        res.write_u16::<BigEndian>(self.qtype).unwrap(); // TODO don't unwrap, handle error, return error response
-        res.write_u16::<BigEndian>(self.class).unwrap();
-        res.write_u32::<BigEndian>(self.ttl).unwrap();
-        res.write_u16::<BigEndian>(self.data_length).unwrap();
-        res.write_u32::<BigEndian>(self.address).unwrap();
+        res.write_u16::<NetworkEndian>(self.qtype).unwrap(); // TODO don't unwrap, handle error, return error response
+        res.write_u16::<NetworkEndian>(self.class).unwrap();
+        res.write_u32::<NetworkEndian>(self.ttl).unwrap();
+        res.write_u16::<NetworkEndian>(self.data_length).unwrap();
+        res.write_u32::<NetworkEndian>(self.address).unwrap();
         res
     }
 }
