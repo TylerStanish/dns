@@ -146,4 +146,25 @@ mod tests {
 
         assert_eq!(expected_packet, actual_packet);
     }
+
+    fn test_packet_to_bytes() {
+        let mut bytes = [
+            0x00u8, 0x00, // transaction id
+            0x00, 0x00, // flags (standard query request)
+            0x00, 0x02, // 2 questions
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
+            // queries
+            0x03, // length of 'foo'
+            0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+            0x06, // length of 'purdue'
+            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, // purdue.edu
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+        ];
+        assert_eq!(DnsPacket::from_bytes(&mut bytes).to_bytes(), bytes.to_vec());
+    }
 }
