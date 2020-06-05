@@ -164,10 +164,8 @@ impl DnsQuery {
     pub fn to_bytes(self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
         res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
-        res.push(((self.qtype & 0xff00) >> 8) as u8);
-        res.push((self.qtype & 0x00ff) as u8);
-        res.push(((self.class & 0xff00) >> 8) as u8);
-        res.push((self.class & 0x00ff) as u8);
+        res.write_u16::<NetworkEndian>(self.qtype).unwrap();
+        res.write_u16::<NetworkEndian>(self.class).unwrap();
         res
     }
 }
