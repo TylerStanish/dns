@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::UdpSocket;
-use byteorder::{ByteOrder, BigEndian, LittleEndian};
+use byteorder::{ByteOrder, BigEndian, WriteBytesExt};
 use resize_slice::ResizeSlice;
 
 mod serialization;
@@ -195,7 +195,14 @@ impl DnsAnswer {
     }
 
     pub fn to_bytes(self) -> Vec<u8> {
-        unimplemented!()
+        let mut res = Vec::new();
+        res.append(&mut serialization::serialize_domain_to_bytes(&self.name));
+        res.write_u16::<BigEndian>(self.qtype).unwrap(); // TODO don't unwrap, handle error, return error response
+        res.write_u16::<BigEndian>(self.class).unwrap();
+        res.write_u32::<BigEndian>(self.ttl).unwrap();
+        res.write_u16::<BigEndian>(self.data_length).unwrap();
+        res.write_u32::<BigEndian>(self.address).unwrap();
+        res
     }
 }
 
@@ -517,6 +524,37 @@ mod tests {
             0x03, 0x63, 0x6f, 0x6d, 0x00,
             0xab, 0xcd,
             0x01, 0x23,
+        ].to_vec();
+        assert_eq!(expected_bytes, actual_bytes);
+    }
+
+    #[test]
+    fn test_dns_answer_to_bytes_all_zero() {
+        let ans = DnsAnswer::new();
+        let actual_bytes = ans.to_bytes();
+        let expected_bytes = [0; 14].to_vec();
+        assert_eq!(expected_bytes, actual_bytes);
+    }
+
+    #[test]
+    fn test_dns_answer_to_bytes() {
+        let mut ans = DnsAnswer::new();
+        ans.name = "foo.bar.com".to_owned();
+        ans.qtype = 0xabcd;
+        ans.class = 0x0123;
+        ans.ttl = 0x456789ab;
+        ans.data_length = 0xbeef;
+        ans.address = 0xdecafbad;
+        let actual_bytes = ans.to_bytes();
+        let expected_bytes = [
+            0x03u8, 0x66u8, 0x6f, 0x6f, 0x00,
+            0x03, 0x62, 0x61, 0x72, 0x00,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
         ].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
