@@ -504,4 +504,21 @@ mod tests {
         let expected_bytes = [0x00u8, 0x00, 0x00, 0x00].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
+
+    #[test]
+    fn test_dns_query_to_bytes() {
+        let mut query = DnsQuery::new();
+        query.name = "foo.bar.com".to_owned();
+        query.qtype = 0xabcd;
+        query.class = 0x0123;
+        let actual_bytes = query.to_bytes();
+        let expected_bytes = [
+            0x03u8, 0x66u8, 0x6f, 0x6f, 0x00,
+            0x03, 0x62, 0x61, 0x72, 0x00,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+        ].to_vec();
+        assert_eq!(expected_bytes, actual_bytes);
+    }
 }
