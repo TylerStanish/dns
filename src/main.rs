@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::UdpSocket;
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{ByteOrder, BigEndian, LittleEndian};
 use resize_slice::ResizeSlice;
 
 #[derive(Debug, PartialEq)]
@@ -61,6 +61,35 @@ impl DnsHeader {
             authority_count,
             additional_count,
         }
+    }
+
+    pub fn to_bytes(self) -> [u8; 12] {
+        let mut res: [u8; 12] = [0; 12];
+        BigEndian::write_u16(&mut res, self.tx_id);
+        let mut flags = 0u16;
+        flags = self.is_response as u16;
+        flags <<= 4;
+        flags += self.opcode as u16;
+        flags <<= 1;
+        flags += self.authoritative as u16;
+        flags <<= 1;
+        flags += self.truncated as u16;
+        flags <<= 1;
+        flags += self.recursion_desired as u16;
+        flags <<= 1;
+        flags += self.recursion_available as u16;
+        flags <<= 3;
+        flags += self.z as u16;
+        flags <<= 4;
+        flags += self.response_code as u16;
+        println!("{:x}", flags);
+        res[2] = ((flags & 0xff00) >> 8) as u8;
+        res[3] = (flags & 0x00ff) as u8;
+        BigEndian::write_u16(&mut res[4..], self.questions_count);
+        BigEndian::write_u16(&mut res[6..], self.answers_count);
+        BigEndian::write_u16(&mut res[8..], self.authority_count);
+        BigEndian::write_u16(&mut res[10..], self.additional_count);
+        res
     }
 
     /// In the flags section, the opcode is
@@ -417,5 +446,39 @@ mod tests {
         expected_packet.answers = Vec::new();
 
         assert_eq!(expected_packet, actual_packet);
+    }
+
+    #[test]
+    fn test_header_to_bytes_all_zero() {
+        let header = DnsHeader::new();
+        let actual_bytes = header.to_bytes();
+        let expected_bytes = [0u8; 12];
+        assert_eq!(expected_bytes, actual_bytes);
+    }
+
+    #[test]
+    fn test_response_header_to_bytes() {
+        let mut header = DnsHeader::new();
+        header.tx_id = 0xbeef;
+        header.is_response = true;
+        header.authoritative = true;
+        header.truncated = true;
+        header.recursion_desired = true;
+        header.recursion_available = true;
+        header.response_code = 5;
+        header.questions_count = 0xabcd;
+        header.answers_count = 0xabcd;
+        header.authority_count = 0xabcd;
+        header.additional_count = 0xabcd;
+        let actual_bytes = header.to_bytes();
+        let expected_bytes = [
+            0xbeu8, 0xef,
+            0x87, 0x85,
+            0xab, 0xcd,
+            0xab, 0xcd,
+            0xab, 0xcd,
+            0xab, 0xcd,
+        ];
+        assert_eq!(expected_bytes, actual_bytes);
     }
 }
