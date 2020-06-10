@@ -3,6 +3,7 @@ use std::net::UdpSocket;
 use serialization::{FromBytes, ToBytes};
 
 mod answer;
+mod client;
 mod header;
 mod packet;
 mod query;
