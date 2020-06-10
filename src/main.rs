@@ -1,8 +1,9 @@
-use std::collections::HashMap;
 use std::net::UdpSocket;
 use serialization::{FromBytes, ToBytes};
+use ttl_cache::TtlCache;
 
 mod answer;
+mod cache;
 mod client;
 mod header;
 mod packet;
@@ -15,7 +16,8 @@ fn main() {
         let mut buf = [0; 1024];
         let nread = sock.recv(&mut buf).unwrap();
         let packet = packet::DnsPacket::from_bytes(&mut buf[..nread]);
-        let result = packet.results(HashMap::new());
+        let mut cache = TtlCache::<query::DnsQuery, answer::DnsAnswer>::new(1024);
+        let result = packet.results(&mut cache);
         sock.send(&result.to_bytes()).unwrap();
     }
 }
