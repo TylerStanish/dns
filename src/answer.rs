@@ -2,7 +2,7 @@ use byteorder::{NetworkEndian, WriteBytesExt};
 use crate::serialization::{serialize_domain_to_bytes, ToBytes};
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DnsAnswer {
     pub name: String,
     pub qtype: u16,

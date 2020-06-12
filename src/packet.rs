@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
-use crate::cache::Cache;
+use crate::client;
 use crate::query::DnsQuery;
 use crate::header::DnsHeader;
 use crate::serialization::{FromBytes, ToBytes};
@@ -22,32 +21,6 @@ impl DnsPacket {
         }
     }
 
-    /// Given `self` is a request packet, `results()` will return the packet
-    /// to send back
-    pub fn results(self, cache: &mut Cache) -> Self {
-        match self.header.opcode {
-            0 => self.standard_query(cache),
-            1 => self.inverse_query(),
-            _ => panic!(),
-        }
-    }
-
-    fn standard_query(&self, cache: &mut Cache) -> Self {
-        let mut answers = Vec::new();
-        for query in &self.queries {
-            if cache.contains_key(query) {
-                answers.push(cache.get(query));
-            } else {
-                // either we own the tld, or we need to get it
-                unimplemented!()
-            }
-        }
-        return DnsPacket::new();
-    }
-
-    fn inverse_query(&self) -> Self {
-        unimplemented!()
-    }
 }
 
 impl FromBytes for DnsPacket {
@@ -182,5 +155,10 @@ mod tests {
             0x00, 0x01, // class
         ].to_vec();
         assert_eq!(DnsPacket::from_bytes(&mut bytes).to_bytes().to_vec(), bytes);
+    }
+
+    #[test]
+    fn test_() {
+
     }
 }
