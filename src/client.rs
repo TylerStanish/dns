@@ -37,6 +37,7 @@ where
     }
 
     fn standard_query(&self, req: DnsPacket) -> DnsPacket {
+        let mut res = req.clone();
         let mut answers: Vec<DnsAnswer> = Vec::new();
         for query in req.queries {
             if self.cache.contains_key(&query) {
@@ -56,11 +57,8 @@ where
                 let res = (self.resolver)(query);
             }
         }
-        let mut packet = DnsPacket::new();
-        mem::replace(&mut packet.header, req.header);
-        mem::replace(&mut packet.queries, req.queries);
-        packet.answers = answers;
-        packet
+        res.answers = answers;
+        res
     }
 
     fn inverse_query(&self, req: DnsPacket) -> DnsPacket {

@@ -5,7 +5,7 @@ use crate::query::DnsQuery;
 use crate::header::DnsHeader;
 use crate::serialization::{FromBytes, ToBytes};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DnsPacket {
     pub header: DnsHeader,
     pub queries: Vec<DnsQuery>,

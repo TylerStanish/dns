@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::serialization::{FromBytes, ToBytes};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DnsHeader {
     pub tx_id: u16,
     pub is_response: bool,
