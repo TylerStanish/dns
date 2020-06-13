@@ -10,6 +10,12 @@ mod packet;
 mod query;
 mod serialization;
 
+fn stub_resolver(req: query::DnsQuery) -> packet::DnsPacket {
+    let res = packet::DnsPacket::new();
+    res.header = req.header;
+    res.answers = vec![];
+}
+
 fn default_resolver(req: query::DnsQuery) -> packet::DnsPacket {
     let socket = UdpSocket::bind(("8.8.8.8", 45678)).expect("Could not initialize listening port, is the port already taken?");
     socket.send_to(&req.to_bytes(), ("8.8.8.8", 53)).unwrap();
