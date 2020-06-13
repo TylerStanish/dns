@@ -51,6 +51,8 @@ where
 
             // DnsAnswer must derive Clone to be able to deref a reference
             answers.push(self.cache.get(&query).unwrap().clone());
+            res.answers = vec![self.cache.get(&query).unwrap().clone()];
+            res
         } else {
             // either we own the tld, or we need to get it
             let parts = query.name.split(".").collect::<Vec<&str>>();
@@ -60,9 +62,8 @@ where
             let tld = parts.last();
             // get the authoritative server for this tld
             let res = (self.resolver)("198.41.0.4", req);
+            res
         }
-        res.answers = answers;
-        res
     }
 
     fn inverse_query(&self, req: DnsPacket) -> DnsPacket {
@@ -73,6 +74,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use ttl_cache::TtlCache;
     use super::*;
 
@@ -81,10 +83,25 @@ mod tests {
         // Doesn't compile:
         // let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut TtlCache::new(0));
         let mut cache = TtlCache::new(0);
-        let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
         let res = client.results(req);
         assert_eq!(res.header.response_code, 4);
+    }
+
+    #[test]
+    fn test_query_hits_cache() {
+        let query = DnsQuery::new();
+        let mut answer = DnsAnswer::new();
+        answer.name = "12.34.56.78".to_owned();
+        let mut cache = TtlCache::new(1);
+        cache.insert(query.clone(), answer.clone(), Duration::from_secs(10));
+        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
+        let mut req = DnsPacket::new();
+        req.header.questions_count = 1;
+        req.queries = vec![query];
+        let res = client.results(req);
+        assert_eq!(res.answers, vec![answer]);
     }
 }
