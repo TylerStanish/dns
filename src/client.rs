@@ -9,7 +9,7 @@ use crate::serialization::{FromBytes, ToBytes};
 
 pub struct DnsClient<'a, F>
 where
-    F: Fn(DnsQuery) -> DnsPacket,
+    F: Fn(&str, DnsPacket) -> DnsPacket,
 {
     resolver: F,
     cache: &'a mut Cache,
@@ -17,7 +17,7 @@ where
 
 impl<'a, F> DnsClient<'a, F>
 where
-    F: Fn(DnsQuery) -> DnsPacket,
+    F: Fn(&str, DnsPacket) -> DnsPacket,
 {
     pub fn new(resolver: F, cache: &'a mut Cache) -> Self {
         DnsClient {
@@ -39,23 +39,22 @@ where
     fn standard_query(&self, req: DnsPacket) -> DnsPacket {
         let mut res = req.clone();
         let mut answers: Vec<DnsAnswer> = Vec::new();
-        for query in req.queries {
-            if self.cache.contains_key(&query) {
-                // Old way?:
-                // https://stackoverflow.com/a/46906516
+        let query = req.queries.first().unwrap();
+        if self.cache.contains_key(&query) {
+            // Old way?:
+            // https://stackoverflow.com/a/46906516
 
-                // DnsAnswer must derive Clone to be able to deref a reference
-                answers.push(self.cache.get(&query).unwrap().clone());
-            } else {
-                // either we own the tld, or we need to get it
-                let parts = query.name.split(".").collect::<Vec<&str>>();
-                if parts.len() < 2 {
-                    // invalid domain
-                }
-                let tld = parts.last();
-                // get the authoritative server for this tld
-                let res = (self.resolver)(query);
+            // DnsAnswer must derive Clone to be able to deref a reference
+            answers.push(self.cache.get(&query).unwrap().clone());
+        } else {
+            // either we own the tld, or we need to get it
+            let parts = query.name.split(".").collect::<Vec<&str>>();
+            if parts.len() < 2 {
+                // invalid domain
             }
+            let tld = parts.last();
+            // get the authoritative server for this tld
+            let res = (self.resolver)("198.41.0.4", req);
         }
         res.answers = answers;
         res

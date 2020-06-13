@@ -1,3 +1,7 @@
+TODOs
+  - Only allow single question in request
+  - Check bounds in spec
+
 Plans/Extra Features:
   - Better error handling!!!
   - Be both authoritative and recursive server
