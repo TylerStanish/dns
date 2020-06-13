@@ -38,6 +38,11 @@ where
 
     fn standard_query(&self, req: DnsPacket) -> DnsPacket {
         let mut res = req.clone();
+        if req.header.questions_count > 1 {
+            // failed
+            res.header.response_code = 4;
+            return res;
+        }
         let mut answers: Vec<DnsAnswer> = Vec::new();
         let query = req.queries.first().unwrap();
         if self.cache.contains_key(&query) {
@@ -62,5 +67,24 @@ where
 
     fn inverse_query(&self, req: DnsPacket) -> DnsPacket {
         unimplemented!()
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use ttl_cache::TtlCache;
+    use super::*;
+
+    #[test]
+    fn accepts_single_question_only() {
+        // Doesn't compile:
+        // let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut TtlCache::new(0));
+        let mut cache = TtlCache::new(0);
+        let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut cache);
+        let mut req = DnsPacket::new();
+        req.header.questions_count = 2;
+        let res = client.results(req);
+        assert_eq!(res.header.response_code, 4);
     }
 }
