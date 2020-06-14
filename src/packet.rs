@@ -40,7 +40,7 @@ impl FromBytes for DnsPacket {
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
-        bytes.resize_from(12);
+        bytes.resize_from(total_num_read);
         for _ in 0..header.questions_count {
             let (query, num_read) = DnsQuery::from_bytes(&bytes);
             queries.push(query);
@@ -129,7 +129,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
             0x06, // length of 'purdue'
-            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, // purdue.edu
+            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x64, 0x75, 0x00, // purdue.edu
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
