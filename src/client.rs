@@ -58,8 +58,9 @@ where
             let parts = query.name.split(".").collect::<Vec<&str>>();
             if parts.len() < 2 {
                 // invalid domain
-                // TODO copy over the queries to the response
-                return DnsPacket::new_error(3);
+                res.header.response_code = 3;
+                res.header.is_response = true;
+                return res;
             }
             let tld = parts.last();
             // get the authoritative server for this tld

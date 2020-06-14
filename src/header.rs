@@ -1,6 +1,28 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use crate::serialization::{FromBytes, ToBytes};
 
+pub enum ResponseCode {
+    NoError,
+    FormatError,
+    ServerError,
+    NameError,
+    NotImplemented,
+    Refused,
+}
+
+impl ToBytes for ResponseCode {
+    fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            Self::NoError => vec![0],
+            Self::FormatError => vec![1],
+            Self::ServerError => vec![2],
+            Self::NameError => vec![3],
+            Self::NotImplemented => vec![4],
+            Self::Refused => vec![5],
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct DnsHeader {
     pub tx_id: u16,
@@ -47,14 +69,14 @@ impl DnsHeader {
 }
 
 impl FromBytes for DnsHeader {
-    fn from_bytes(bytes: &mut [u8]) -> Self {
+    fn from_bytes(bytes: &[u8]) -> (Self, usize) {
         let tx_id = NetworkEndian::read_u16(bytes);
         let flags = &bytes[2..4];
         let questions_count = NetworkEndian::read_u16(&bytes[4..6]);
         let answers_count = NetworkEndian::read_u16(&bytes[6..8]);
         let authority_count = NetworkEndian::read_u16(&bytes[8..10]);
         let additional_count = NetworkEndian::read_u16(&bytes[10..12]);
-        DnsHeader {
+        (DnsHeader {
             tx_id,
             is_response: flags[0] & 0x80 > 0,
             opcode: Self::opcode(&flags[0]),
@@ -68,7 +90,7 @@ impl FromBytes for DnsHeader {
             answers_count,
             authority_count,
             additional_count,
-        }
+        }, 12)
     }
 }
 
@@ -118,7 +140,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&mut bytes);
+        let (actual_header, _) = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.questions_count = 1;
@@ -136,7 +158,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&mut bytes);
+        let (actual_header, _) = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.is_response = true;
@@ -158,7 +180,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&mut bytes);
+        let (actual_header, _) = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.tx_id = 0xffff;
         expected_header.opcode = 0x0f;
@@ -182,7 +204,7 @@ mod tests {
             0x01, 0x00, // 256 authority rr's
             0x00, 0x00, // additional rr's
         ];
-        let actual_header = DnsHeader::from_bytes(&mut bytes);
+        let (actual_header, _) = DnsHeader::from_bytes(&mut bytes);
         let mut expected_header = DnsHeader::new();
         expected_header.answers_count = 1;
         expected_header.authority_count = 256;

@@ -22,7 +22,7 @@ fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     socket.send_to(&req.to_bytes(), (host, 53)).unwrap();
     let mut res = [0; 1024];
     socket.recv_from(&mut res).unwrap();
-    packet::DnsPacket::from_bytes(&mut res)
+    packet::DnsPacket::from_bytes(&mut res).0
 }
 
 fn main() {
@@ -32,7 +32,8 @@ fn main() {
     loop {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
-        let packet = packet::DnsPacket::from_bytes(&mut buf[..nread]);
+        let (packet, _) = packet::DnsPacket::from_bytes(&mut buf[..nread]);
+        println!("{:?}", packet);
         let result = client.results(packet);
         sock.send_to(&result.to_bytes(), &src).unwrap();
     }

@@ -30,11 +30,11 @@ impl FromBytes for DnsQuery {
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    fn from_bytes(mut bytes: &mut [u8]) -> Self {
+    fn from_bytes(bytes: &[u8]) -> (Self, usize) {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
-
+        
         let name_len = bytes[0];
         let mut name = String::with_capacity(name_len as usize);
         let mut curr_byte = 0;
@@ -56,12 +56,13 @@ impl FromBytes for DnsQuery {
         // resize the slice so the caller of this function can continue
         // and not have to do any arithmetic or handle a tuple return type
         // or extra pointer variable
-        bytes.resize_from(curr_byte+4);
-        DnsQuery {
+        // UPDATE unfortunately, I don't know if there's a way to mutate a param
+        // like this, even having `mut: &mut`
+        (DnsQuery {
             name,
             qtype,
             class,
-        }
+        }, curr_byte+4)
     }
 }
 
@@ -89,7 +90,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = 1;
@@ -106,7 +107,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = 1;
@@ -125,7 +126,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_query = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.bar.com".to_owned();
         expected_query.qtype = 1;
@@ -150,13 +151,12 @@ mod tests {
         query.class = 0x0123;
         let actual_bytes = query.to_bytes();
         let expected_bytes = [
-            0x03u8, 0x66u8, 0x6f, 0x6f, 0x00,
-            0x03, 0x62, 0x61, 0x72, 0x00,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0x03u8, 0x66u8, 0x6f, 0x6f, // foo
+            0x03, 0x62, 0x61, 0x72, // bar
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
             0xab, 0xcd,
             0x01, 0x23,
         ].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
-
 }

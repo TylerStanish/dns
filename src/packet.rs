@@ -35,20 +35,23 @@ impl DnsPacket {
 }
 
 impl FromBytes for DnsPacket {
-    fn from_bytes(mut bytes: &mut [u8]) -> Self {
-        let header = DnsHeader::from_bytes(&mut bytes[..12]);
+    fn from_bytes(mut bytes: &[u8]) -> (Self, usize) {
+        let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]);
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
         bytes.resize_from(12);
         for _ in 0..header.questions_count {
-            queries.push(DnsQuery::from_bytes(bytes));
+            let (query, num_read) = DnsQuery::from_bytes(&bytes);
+            queries.push(query);
+            bytes.resize_from(num_read);
+            total_num_read += num_read;
         }
-        DnsPacket {
+        (DnsPacket {
             header,
             queries,
             answers: Vec::new(),
-        }
+        }, total_num_read)
     }
 }
 
@@ -57,7 +60,7 @@ impl ToBytes for DnsPacket {
         let mut res = Vec::new();
         res.append(&mut self.header.to_bytes().to_vec());
         res.append(&mut self.queries.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
-        res.append(&mut self.answers.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
+        res.append(&mut self.answers.iter().flat_map(|answer| answer.to_bytes()).collect::<Vec<u8>>());
         res
     }
 }
@@ -77,7 +80,7 @@ mod tests {
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let actual_packet = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         expected_packet.header = DnsHeader::new();
 
@@ -98,7 +101,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_packet = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         expected_packet.header.questions_count = 1;
         let mut query = DnsQuery::new();
@@ -130,7 +133,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let actual_packet = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
         let mut expected_packet = DnsPacket::new();
         expected_packet.header.questions_count = 2;
         let mut foo_query = DnsQuery::new();
@@ -138,7 +141,7 @@ mod tests {
         foo_query.qtype = 1;
         foo_query.class = 1;
         let mut purdue_query = DnsQuery::new();
-        purdue_query.name = "foo.com".to_owned();
+        purdue_query.name = "purdue.edu".to_owned();
         purdue_query.qtype = 1;
         purdue_query.class = 1;
         expected_packet.queries = vec![foo_query, purdue_query];
@@ -147,7 +150,8 @@ mod tests {
         assert_eq!(expected_packet, actual_packet);
     }
 
-    fn test_packet_to_bytes() {
+    #[test]
+    fn test_packet_to_bytes_and_from_bytes() {
         let mut bytes = [
             0x00u8, 0x00, // transaction id
             0x00, 0x00, // flags (standard query request)
@@ -161,15 +165,11 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
             0x06, // length of 'purdue'
-            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, // purdue.edu
+            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, 0x00, // purdue.edu
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ].to_vec();
-        assert_eq!(DnsPacket::from_bytes(&mut bytes).to_bytes().to_vec(), bytes);
-    }
-
-    #[test]
-    fn test_() {
-
+        let (packet, _) = DnsPacket::from_bytes(&mut bytes);
+        assert_eq!(packet.to_bytes().to_vec(), bytes);
     }
 }
