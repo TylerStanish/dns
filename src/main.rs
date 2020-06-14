@@ -26,14 +26,14 @@ fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
 }
 
 fn main() {
-    let sock = UdpSocket::bind("0.0.0.0:4567").expect("Could not create server");
+    let sock = UdpSocket::bind("0.0.0.0:53").expect("Could not create server");
     let mut cache = TtlCache::<query::DnsQuery, answer::DnsAnswer>::new(1024);
-    let client = client::DnsClient::new(&default_resolver, &mut cache);
+    let client = client::DnsClient::new(&stub_resolver, &mut cache);
     loop {
         let mut buf = [0; 1024];
-        let nread = sock.recv(&mut buf).unwrap();
+        let (nread, src) = sock.recv_from(&mut buf).unwrap();
         let packet = packet::DnsPacket::from_bytes(&mut buf[..nread]);
         let result = client.results(packet);
-        sock.send(&result.to_bytes()).unwrap();
+        sock.send_to(&result.to_bytes(), &src).unwrap();
     }
 }

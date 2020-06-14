@@ -58,6 +58,8 @@ where
             let parts = query.name.split(".").collect::<Vec<&str>>();
             if parts.len() < 2 {
                 // invalid domain
+                // TODO copy over the queries to the response
+                return DnsPacket::new_error(3);
             }
             let tld = parts.last();
             // get the authoritative server for this tld
@@ -103,5 +105,18 @@ mod tests {
         req.queries = vec![query];
         let res = client.results(req);
         assert_eq!(res.answers, vec![answer]);
+    }
+
+    #[test]
+    fn test_gives_error_for_invalid_domain() {
+        let mut query = DnsQuery::new();
+        query.name = "invalid domain".to_owned();
+        let mut cache = TtlCache::new(1);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
+        let mut req = DnsPacket::new();
+        req.header.questions_count = 1;
+        req.queries = vec![query];
+        let res = client.results(req);
+        assert_eq!(res.header.response_code, 3);
     }
 }

@@ -21,6 +21,17 @@ impl DnsPacket {
         }
     }
 
+    pub fn new_error(err: u8) -> Self {
+        let mut packet = DnsPacket::new_response();
+        packet.header.response_code = err;
+        packet
+    }
+
+    pub fn new_response() -> Self {
+        let mut packet = DnsPacket::new();
+        packet.header.is_response = true;
+        packet
+    }
 }
 
 impl FromBytes for DnsPacket {
