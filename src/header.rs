@@ -101,7 +101,7 @@ impl ToBytes for DnsHeader {
         let mut flags = 0u16;
         flags = self.is_response as u16;
         flags <<= 4;
-        flags += self.opcode as u16;
+        flags += (self.opcode & 0x0f) as u16;
         flags <<= 1;
         flags += self.authoritative as u16;
         flags <<= 1;
@@ -114,7 +114,7 @@ impl ToBytes for DnsHeader {
         // TODO `&` each value you add with its max value!!!
         flags += (self.z & 0x07) as u16;
         flags <<= 4;
-        flags += self.response_code as u16;
+        flags += (self.response_code & 0x0f) as u16;
         res[2] = ((flags & 0xff00) >> 8) as u8;
         res[3] = (flags & 0x00ff) as u8;
         NetworkEndian::write_u16(&mut res[4..], self.questions_count);
