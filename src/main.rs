@@ -20,6 +20,7 @@ fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     let mut answer = answer::DnsAnswer::new();
     answer.address = 0xbeefbeef;
     answer.name = req.queries[0].name.clone();
+    answer.class = 1;
     answer.data_length = 4;
     answer.qtype = req.queries[0].qtype;
     res.answers = vec![answer];
@@ -44,7 +45,6 @@ fn main() {
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
         let (packet, _) = packet::DnsPacket::from_bytes(&mut buf[..nread]);
         let result = client.results(packet);
-        println!("{:?}", result);
         sock.send_to(&result.to_bytes(), &src).unwrap();
     }
 }

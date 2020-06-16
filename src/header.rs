@@ -80,7 +80,7 @@ impl FromBytes for DnsHeader {
             tx_id,
             is_response: flags[0] & 0x80 > 0,
             opcode: Self::opcode(&flags[0]),
-            authoritative: (flags[0] & 0x04) > 0,
+            authoritative: flags[0] & 0x04 > 0,
             truncated: flags[0] & 0x02 > 0,
             recursion_desired: flags[0] & 0x01 > 0,
             recursion_available: flags[1] & 0x80 > 0,
@@ -111,7 +111,8 @@ impl ToBytes for DnsHeader {
         flags <<= 1;
         flags += self.recursion_available as u16;
         flags <<= 3;
-        flags += self.z as u16;
+        // TODO `&` each value you add with its max value!!!
+        flags += (self.z & 0x07) as u16;
         flags <<= 4;
         flags += self.response_code as u16;
         res[2] = ((flags & 0xff00) >> 8) as u8;
@@ -246,4 +247,41 @@ mod tests {
         assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
 
+    /// FIXME This is a really important test for security, also all possible
+    /// numbers that can be smaller than their rust type counterpart (e.g. z
+    /// holds 3 bits in practice but we put it in a u8
+    #[test]
+    fn test_z_in_bounds() {
+        let mut header = DnsHeader::new();
+        header.tx_id = 0xbeef;
+        header.z = 7;
+        let actual_bytes = header.to_bytes();
+        let expected_bytes = [
+            0xbeu8, 0xef,
+            0x00, 0x70,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+        ];
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
+    }
+
+    /// FIXME This is a really important test for security
+    #[test]
+    fn test_z_out_of_bounds() {
+        let mut header = DnsHeader::new();
+        header.tx_id = 0xbeef;
+        header.z = 32;
+        let actual_bytes = header.to_bytes();
+        let expected_bytes = [
+            0xbeu8, 0xef,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+            0x00, 0x00,
+        ];
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
+    }
 }

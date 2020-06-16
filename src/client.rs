@@ -65,7 +65,6 @@ where
             let tld = parts.last();
             // get the authoritative server for this tld
             let res = (self.resolver)("198.41.0.4", req);
-            println!("Resolved to: {:?}", res);
             res
         }
     }
