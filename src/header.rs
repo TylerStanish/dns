@@ -84,7 +84,7 @@ impl FromBytes for DnsHeader {
             truncated: flags[0] & 0x02 > 0,
             recursion_desired: flags[0] & 0x01 > 0,
             recursion_available: flags[1] & 0x80 > 0,
-            z: flags[1] & 0x70,
+            z: (flags[1] & 0x70) >> 4,
             response_code: flags[1] & 0x0f,
             questions_count,
             answers_count,
@@ -283,5 +283,26 @@ mod tests {
             0x00, 0x00,
         ];
         assert_eq!(expected_bytes.to_vec(), actual_bytes);
+    }
+
+    /// FIXME This is a really important test for security
+    #[test]
+    fn test_multibit_from_bytes_and_bounds() {
+        let mut bytes = [
+            0xffu8, 0xff, // transaction id
+            0x48, 0x79, // flags (standard query request)
+            0x00, 0x00, // 1 question
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x00, // neither authority rr's
+            0x00, 0x00, // nor additional rr's
+        ];
+        let (actual_header, _) = DnsHeader::from_bytes(&mut bytes);
+        let mut expected_header = DnsHeader::new();
+        expected_header.tx_id = 0xffff;
+        expected_header.opcode = 9;
+        expected_header.z = 7;
+        expected_header.response_code = 9;
+
+        assert_eq!(expected_header, actual_header);
     }
 }
