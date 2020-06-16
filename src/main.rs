@@ -10,10 +10,20 @@ mod packet;
 mod query;
 mod serialization;
 
-fn stub_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
+fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     let mut res = packet::DnsPacket::new();
     res.header = req.header;
-    res.answers = vec![];
+    res.header.is_response = true;
+    res.header.answers_count = 1;
+    res.header.additional_count = 0;
+    res.header.authority_count = 0;
+    let mut answer = answer::DnsAnswer::new();
+    answer.address = 0xbeefbeef;
+    answer.name = req.queries[0].name.clone();
+    answer.data_length = 4;
+    answer.qtype = req.queries[0].qtype;
+    res.answers = vec![answer];
+    res.queries = req.queries;
     res
 }
 
@@ -33,8 +43,8 @@ fn main() {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
         let (packet, _) = packet::DnsPacket::from_bytes(&mut buf[..nread]);
-        println!("{:?}", packet);
         let result = client.results(packet);
+        println!("{:?}", result);
         sock.send_to(&result.to_bytes(), &src).unwrap();
     }
 }
