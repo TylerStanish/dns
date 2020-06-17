@@ -1,5 +1,5 @@
 use byteorder::{NetworkEndian, WriteBytesExt};
-use crate::serialization::{serialize_domain_to_bytes, ToBytes};
+use crate::serialization::{serialize_domain_to_bytes, FromBytes, ToBytes};
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,6 +24,12 @@ impl DnsAnswer {
         }
     }
 
+}
+
+impl FromBytes for DnsAnswer {
+    fn from_bytes(bytes: &[u8]) -> (Self, usize) {
+        unimplemented!()
+    }
 }
 
 impl ToBytes for DnsAnswer {
@@ -73,5 +79,10 @@ mod tests {
             0xde, 0xca, 0xfb, 0xad,
         ].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
+    }
+
+    #[test]
+    fn test_dns_answer_from_bytes() {
+        unimplemented!()
     }
 }

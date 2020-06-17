@@ -10,6 +10,11 @@ pub struct DnsPacket {
     pub header: DnsHeader,
     pub queries: Vec<DnsQuery>,
     pub answers: Vec<DnsAnswer>,
+    /// The answer, authority, and additional sections all share the same
+    /// format: a variable number of resource records, where the number of
+    /// records is specified in the corresponding count field in the header.
+    pub authority: Vec<DnsAnswer>,
+    pub additional: Vec<DnsAnswer>,
 }
 
 impl DnsPacket {
@@ -18,6 +23,8 @@ impl DnsPacket {
             header: DnsHeader::new(),
             queries: Vec::new(),
             answers: Vec::new(),
+            authority: Vec::new(),
+            additional: Vec::new(),
         }
     }
 
@@ -37,9 +44,13 @@ impl DnsPacket {
 impl FromBytes for DnsPacket {
     fn from_bytes(mut bytes: &[u8]) -> (Self, usize) {
         let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]);
+        let mut local_num_read = 0;
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
+        let mut answers = Vec::with_capacity(header.answers_count as usize);
+        let mut authority = Vec::with_capacity(header.authority_count as usize);
+        let mut additional = Vec::with_capacity(header.additional_count as usize);
         bytes.resize_from(total_num_read);
         for _ in 0..header.questions_count {
             let (query, num_read) = DnsQuery::from_bytes(&bytes);
@@ -47,10 +58,40 @@ impl FromBytes for DnsPacket {
             bytes.resize_from(num_read);
             total_num_read += num_read;
         }
+        bytes.resize_from(local_num_read);
+        local_num_read = 0;
+        for _ in 0..header.answers_count {
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            answers.push(answer);
+            bytes.resize_from(num_read);
+            total_num_read += num_read;
+            local_num_read += num_read;
+        }
+        bytes.resize_from(local_num_read);
+        local_num_read = 0;
+        for _ in 0..header.answers_count {
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            authority.push(answer);
+            bytes.resize_from(num_read);
+            total_num_read += num_read;
+            local_num_read += num_read;
+        }
+        bytes.resize_from(local_num_read);
+        local_num_read = 0;
+        for _ in 0..header.answers_count {
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            additional.push(answer);
+            bytes.resize_from(num_read);
+            total_num_read += num_read;
+            local_num_read += num_read;
+        }
+        bytes.resize_from(local_num_read);
         (DnsPacket {
             header,
             queries,
             answers: Vec::new(),
+            authority: Vec::new(),
+            additional: Vec::new(),
         }, total_num_read)
     }
 }
@@ -61,6 +102,8 @@ impl ToBytes for DnsPacket {
         res.append(&mut self.header.to_bytes().to_vec());
         res.append(&mut self.queries.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
         res.append(&mut self.answers.iter().flat_map(|answer| answer.to_bytes()).collect::<Vec<u8>>());
+        res.append(&mut self.authority.iter().flat_map(|authority| authority.to_bytes()).collect::<Vec<u8>>());
+        res.append(&mut self.additional.iter().flat_map(|additional| additional.to_bytes()).collect::<Vec<u8>>());
         res
     }
 }
@@ -171,5 +214,33 @@ mod tests {
         ].to_vec();
         let (packet, _) = DnsPacket::from_bytes(&mut bytes);
         assert_eq!(packet.to_bytes().to_vec(), bytes);
+    }
+
+    #[test]
+    fn test_packet_additional_and_authority() {
+        let mut bytes = [
+            0x00u8, 0x00, // transaction id
+            0x00, 0x00, // flags (standard query request)
+            0x00, 0x00, // 0 questions
+            0x00, 0x00, // dns request, so no answer rr's here of course
+            0x00, 0x01, // 1 authority rr
+            0x00, 0x01, // 1 additional rr
+            // queries
+            0x03, // length of 'foo'
+            0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+            0x06, // length of 'purdue'
+            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, 0x00, // purdue.edu
+            0x00, 0x01, // a record
+            0x00, 0x01, // class
+        ].to_vec();
+        let (packet, _) = DnsPacket::from_bytes(&mut bytes);
+        assert_eq!(packet.to_bytes().to_vec(), bytes);
+    }
+
+    #[test]
+    fn test_packet_from_bytes_with_answers() {
+        unimplemented!()
     }
 }
