@@ -69,7 +69,7 @@ impl FromBytes for DnsPacket {
         }
         bytes.resize_from(local_num_read);
         local_num_read = 0;
-        for _ in 0..header.answers_count {
+        for _ in 0..header.authority_count {
             let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
             authority.push(answer);
             bytes.resize_from(num_read);
@@ -78,7 +78,7 @@ impl FromBytes for DnsPacket {
         }
         bytes.resize_from(local_num_read);
         local_num_read = 0;
-        for _ in 0..header.answers_count {
+        for _ in 0..header.additional_count {
             let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
             additional.push(answer);
             bytes.resize_from(num_read);
