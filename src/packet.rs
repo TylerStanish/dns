@@ -238,9 +238,5 @@ mod tests {
         let (packet, _) = DnsPacket::from_bytes(&mut bytes);
         assert_eq!(packet.to_bytes().to_vec(), bytes);
     }
-
-    #[test]
-    fn test_packet_from_bytes_with_answers() {
-        unimplemented!()
-    }
+    // TODO test multiple answers of additional and authority rrs
 }
