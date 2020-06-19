@@ -1,5 +1,5 @@
-use byteorder::{NetworkEndian, WriteBytesExt};
-use crate::serialization::{serialize_domain_to_bytes, FromBytes, ToBytes};
+use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
+use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,7 +28,26 @@ impl DnsAnswer {
 
 impl FromBytes for DnsAnswer {
     fn from_bytes(bytes: &[u8]) -> (Self, usize) {
-        unimplemented!()
+        let (name, mut bytes_read) = deserialize_domain_from_bytes(&bytes);
+        let qtype = NetworkEndian::read_u16(&bytes[bytes_read..]);
+        bytes_read += 2;
+        let class = NetworkEndian::read_u16(&bytes[bytes_read..]);
+        bytes_read += 2;
+        let ttl = NetworkEndian::read_u32(&bytes[bytes_read..]);
+        bytes_read += 4;
+        let data_length = NetworkEndian::read_u16(&bytes[bytes_read..]);
+        bytes_read += 2;
+        // TODO ay, assuming ipv4. What if the resolver returns an ipv6 addr?
+        let address = NetworkEndian::read_u32(&bytes[bytes_read..]);
+        bytes_read += 4;
+        (DnsAnswer {
+            name,
+            qtype,
+            class,
+            ttl,
+            data_length,
+            address,
+        }, bytes_read)
     }
 }
 

@@ -217,6 +217,16 @@ mod tests {
     }
 
     #[test]
+    fn test_packet_from_bytes_with_one_answer() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_packet_from_bytes_with_many_answers() {
+        unimplemented!()
+    }
+
+    #[test]
     fn test_packet_additional_and_authority() {
         let mut bytes = [
             0x00u8, 0x00, // transaction id
