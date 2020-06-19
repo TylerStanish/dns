@@ -46,7 +46,23 @@ mod tests {
 
     #[test]
     fn test_serialize_domain_to_bytes() {
-        unimplemented!()
+        let expected_bytes = [
+            0x03u8, 0x66, 0x6f, 0x6f, // foo
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
+        ];
+        let actual_bytes = serialize_domain_to_bytes("foo.com");
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
+    }
+
+    #[test]
+    fn test_serialize_domain_to_bytes_with_subdomain() {
+        let expected_bytes = [
+            0x03u8, 0x66, 0x6f, 0x6f, // foo
+            0x03, 0x62, 0x61, 0x72, // bar
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
+        ];
+        let actual_bytes = serialize_domain_to_bytes("foo.bar.com");
+        assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
 
     #[test]
@@ -61,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_domain_from_bytes_with_subdomains() {
+    fn test_deserialize_domain_from_bytes_with_subdomain() {
         let bytes = [
             0x03u8, 0x66, 0x6f, 0x6f, // foo
             0x03, 0x62, 0x61, 0x72, // bar
