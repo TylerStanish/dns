@@ -20,12 +20,30 @@ pub fn serialize_domain_to_bytes(domain: &str) -> Vec<u8> {
     res
 }
 
-pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (&str, usize) {
-    unimplemented!()
+pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (String, usize) {
+    let name_len = bytes[0];
+    let mut name = String::with_capacity(name_len as usize);
+    let mut curr_byte = 0;
+    loop {
+        let len = bytes[curr_byte];
+        curr_byte += 1; // consume the size byte
+        for i in curr_byte..(curr_byte as u8 + len) as usize {
+            name.push(bytes[i] as char);
+        }
+        curr_byte += len as usize;
+        if bytes[curr_byte] == 0 {
+            break
+        }
+        name.push('.');
+    }
+    curr_byte += 1; // consume zero octet
+    (name, curr_byte)
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn test_serialize_domain_to_bytes() {
         unimplemented!()
@@ -33,6 +51,24 @@ mod tests {
 
     #[test]
     fn test_deserialize_domain_from_bytes() {
-        unimplemented!()
+        let bytes = [
+            0x03u8, 0x66, 0x6f, 0x6f, // foo
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
+        ];
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes);
+        assert_eq!("foo.com", actual_bytes);
+        assert_eq!(9, bytes_read);
+    }
+
+    #[test]
+    fn test_deserialize_domain_from_bytes_with_subdomains() {
+        let bytes = [
+            0x03u8, 0x66, 0x6f, 0x6f, // foo
+            0x03, 0x62, 0x61, 0x72, // bar
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
+        ];
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes);
+        assert_eq!("foo.bar.com", actual_bytes);
+        assert_eq!(13, bytes_read);
     }
 }

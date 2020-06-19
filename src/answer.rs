@@ -117,7 +117,6 @@ mod tests {
             0xde, 0xca, 0xfb, 0xad,
         ];
         let (answer, _) = DnsAnswer::from_bytes(&expected_bytes);
-        let mut actual_bytes = answer.to_bytes();
-        assert_eq!(expected_bytes.to_vec(), actual_bytes);
+        assert_eq!(expected_bytes.to_vec(), answer.to_bytes());
     }
 }

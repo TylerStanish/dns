@@ -1,6 +1,6 @@
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
 use resize_slice::ResizeSlice;
-use crate::serialization::{serialize_domain_to_bytes, FromBytes, ToBytes};
+use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct DnsQuery {
@@ -34,23 +34,7 @@ impl FromBytes for DnsQuery {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
-        
-        let name_len = bytes[0];
-        let mut name = String::with_capacity(name_len as usize);
-        let mut curr_byte = 0;
-        loop {
-            let len = bytes[curr_byte];
-            curr_byte += 1; // consume the size byte
-            for i in curr_byte..(curr_byte as u8 + len) as usize {
-                name.push(bytes[i] as char);
-            }
-            curr_byte += len as usize;
-            if bytes[curr_byte] == 0 {
-                break
-            }
-            name.push('.');
-        }
-        curr_byte += 1; // consume zero octet
+        let (name, curr_byte) = deserialize_domain_from_bytes(&bytes);
         let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
         let class = NetworkEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
         // resize the slice so the caller of this function can continue
