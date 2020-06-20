@@ -135,7 +135,8 @@ mod tests {
             0xbe, 0xef,
             0xde, 0xca, 0xfb, 0xad,
         ];
-        let (answer, _) = DnsAnswer::from_bytes(&expected_bytes);
+        let (answer, num_read) = DnsAnswer::from_bytes(&expected_bytes);
+        assert_eq!(expected_bytes.len(), num_read);
         assert_eq!(expected_bytes.to_vec(), answer.to_bytes());
     }
 }

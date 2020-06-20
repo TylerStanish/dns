@@ -44,7 +44,6 @@ impl DnsPacket {
 impl FromBytes for DnsPacket {
     fn from_bytes(mut bytes: &[u8]) -> (Self, usize) {
         let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]);
-        let mut local_num_read = 0;
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
@@ -55,43 +54,33 @@ impl FromBytes for DnsPacket {
         for _ in 0..header.questions_count {
             let (query, num_read) = DnsQuery::from_bytes(&bytes);
             queries.push(query);
-            bytes.resize_from(num_read);
             total_num_read += num_read;
+            bytes.resize_from(num_read);
         }
-        bytes.resize_from(local_num_read);
-        local_num_read = 0;
         for _ in 0..header.answers_count {
             let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
             answers.push(answer);
-            bytes.resize_from(num_read);
             total_num_read += num_read;
-            local_num_read += num_read;
+            bytes.resize_from(num_read);
         }
-        bytes.resize_from(local_num_read);
-        local_num_read = 0;
         for _ in 0..header.authority_count {
             let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
             authority.push(answer);
-            bytes.resize_from(num_read);
             total_num_read += num_read;
-            local_num_read += num_read;
+            bytes.resize_from(num_read);
         }
-        bytes.resize_from(local_num_read);
-        local_num_read = 0;
         for _ in 0..header.additional_count {
             let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
             additional.push(answer);
-            bytes.resize_from(num_read);
             total_num_read += num_read;
-            local_num_read += num_read;
+            bytes.resize_from(num_read);
         }
-        bytes.resize_from(local_num_read);
         (DnsPacket {
             header,
             queries,
-            answers: Vec::new(),
-            authority: Vec::new(),
-            additional: Vec::new(),
+            answers,
+            authority,
+            additional,
         }, total_num_read)
     }
 }
@@ -218,35 +207,110 @@ mod tests {
 
     #[test]
     fn test_packet_from_bytes_with_one_answer() {
-        unimplemented!()
+        let bytes = [
+            0x00u8, 0x00, // transaction id
+            0x80, 0x00, // flags (standard query response)
+            0x00, 0x00, // 0 questions
+            0x00, 0x01, // 1 answer
+            0x00, 0x00,
+            0x00, 0x00,
+            // answer
+            0x03u8, 0x66, 0x6f, 0x6f,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
+        ];
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        assert_eq!(bytes.len(), num_read);
+        let mut answer = DnsAnswer::new();
+        answer.name = "foo.com".to_owned();
+        answer.qtype = 0xabcd;
+        answer.class = 0x0123;
+        answer.ttl = 0x456789ab;
+        answer.data_length = 0xbeef;
+        answer.address = 0xdecafbad;
+        assert_eq!(vec![answer], packet.answers);
     }
 
     #[test]
     fn test_packet_from_bytes_with_many_answers() {
-        unimplemented!()
+        let bytes = [
+            0x00u8, 0x00, // transaction id
+            0x80, 0x00, // flags (standard query response)
+            0x00, 0x00, // 0 questions
+            0x00, 0x02, // 2 answers
+            0x00, 0x00,
+            0x00, 0x00,
+            // answers
+            //foo.com
+            0x03u8, 0x66, 0x6f, 0x6f,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
+            // bar.com
+            0x03, 0x62, 0x61, 0x72,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
+        ];
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        assert_eq!(bytes.len(), num_read);
+        let mut foo_answer = DnsAnswer::new();
+        foo_answer.name = "foo.com".to_owned();
+        foo_answer.qtype = 0xabcd;
+        foo_answer.class = 0x0123;
+        foo_answer.ttl = 0x456789ab;
+        foo_answer.data_length = 0xbeef;
+        foo_answer.address = 0xdecafbad;
+        let mut bar_answer = DnsAnswer::new();
+        bar_answer.name = "bar.com".to_owned();
+        bar_answer.qtype = 0xabcd;
+        bar_answer.class = 0x0123;
+        bar_answer.ttl = 0x456789ab;
+        bar_answer.data_length = 0xbeef;
+        bar_answer.address = 0xdecafbad;
+        assert_eq!(vec![foo_answer, bar_answer], packet.answers);
     }
 
     #[test]
     fn test_packet_additional_and_authority() {
-        let mut bytes = [
+        let bytes = [
             0x00u8, 0x00, // transaction id
-            0x00, 0x00, // flags (standard query request)
+            0x80, 0x00, // flags (standard query response)
             0x00, 0x00, // 0 questions
-            0x00, 0x00, // dns request, so no answer rr's here of course
-            0x00, 0x01, // 1 authority rr
-            0x00, 0x01, // 1 additional rr
-            // queries
-            0x03, // length of 'foo'
-            0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.com
-            0x00, 0x01, // a record
-            0x00, 0x01, // class
-            0x06, // length of 'purdue'
-            0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, 0x00, // purdue.edu
-            0x00, 0x01, // a record
-            0x00, 0x01, // class
-        ].to_vec();
-        let (packet, _) = DnsPacket::from_bytes(&mut bytes);
-        assert_eq!(packet.to_bytes().to_vec(), bytes);
+            0x00, 0x00, // 2 answers
+            0x00, 0x01,
+            0x00, 0x01,
+            // answers
+            //foo.com
+            0x03u8, 0x66, 0x6f, 0x6f,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
+            // bar.com
+            0x03, 0x62, 0x61, 0x72,
+            0x03, 0x63, 0x6f, 0x6d, 0x00,
+            0xab, 0xcd,
+            0x01, 0x23,
+            0x45, 0x67, 0x89, 0xab,
+            0xbe, 0xef,
+            0xde, 0xca, 0xfb, 0xad,
+        ];
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        assert_eq!(bytes.len(), num_read);
+        assert_eq!(packet.to_bytes().to_vec(), bytes.to_vec());
     }
     // TODO test multiple answers of additional and authority rrs
 }
