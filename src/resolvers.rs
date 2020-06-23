@@ -26,7 +26,7 @@ pub fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket
     socket.send_to(&req.to_bytes(), (host, 53)).unwrap();
     let mut res = [0; 1024];
     socket.recv_from(&mut res).unwrap();
-    let res = packet::DnsPacket::from_bytes(&mut res).0;
+    let res = packet::DnsPacket::from_bytes(&mut res).unwrap().0; // TODO PLEASE don't assume the server returns a correct response!
     println!("{:?}", res);
     res
 }

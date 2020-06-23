@@ -1,11 +1,12 @@
+use std::convert::TryInto;
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
-use resize_slice::ResizeSlice;
+use crate::header::ResourceType;
 use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct DnsQuery {
     pub name: String,
-    pub qtype: u16,
+    pub qtype: ResourceType,
     pub class: u16,
 }
 
@@ -13,7 +14,7 @@ impl DnsQuery {
     pub fn new() -> Self {
         DnsQuery {
             name: String::new(),
-            qtype: 0,
+            qtype: ResourceType::A,
             class: 0,
         }
     }
@@ -30,23 +31,23 @@ impl FromBytes for DnsQuery {
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    fn from_bytes(bytes: &[u8]) -> (Self, usize) {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ()> {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
         let (name, curr_byte) = deserialize_domain_from_bytes(&bytes);
-        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte+2]);
+        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte+2]).try_into()?;
         let class = NetworkEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
         // resize the slice so the caller of this function can continue
         // and not have to do any arithmetic or handle a tuple return type
         // or extra pointer variable
         // UPDATE unfortunately, I don't know if there's a way to mutate a param
         // like this, even having `mut: &mut`
-        (DnsQuery {
+        Ok((DnsQuery {
             name,
             qtype,
             class,
-        }, curr_byte+4)
+        }, curr_byte+4))
     }
 }
 
@@ -74,7 +75,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = 1;
@@ -91,10 +92,10 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
-        expected_query.qtype = 1;
+        expected_query.qtype = ResourceType::A;
         expected_query.class = 1;
 
         assert_eq!(expected_query, actual_query);
@@ -110,10 +111,10 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes);
+        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.bar.com".to_owned();
-        expected_query.qtype = 1;
+        expected_query.qtype = ResourceType::A;
         expected_query.class = 1;
 
         assert_eq!(expected_query, actual_query);
@@ -131,7 +132,7 @@ mod tests {
     fn test_dns_query_to_bytes() {
         let mut query = DnsQuery::new();
         query.name = "foo.bar.com".to_owned();
-        query.qtype = 0xabcd;
+        query.qtype = ResourceType::AAAA;
         query.class = 0x0123;
         let actual_bytes = query.to_bytes();
         let expected_bytes = [

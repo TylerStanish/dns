@@ -18,8 +18,14 @@ fn main() {
     loop {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
-        let (packet, _) = packet::DnsPacket::from_bytes(&mut buf[..nread]);
-        let result = client.results(packet);
+        let result = match packet::DnsPacket::from_bytes(&mut buf[..nread]) {
+            Ok((packet, _)) => client.results(packet),
+            Err(packet) => {
+                let mut packet = packet::DnsPacket::new();
+                packet.header.response_code = header::ResponseCode::FormatError;
+                packet
+            }
+        };
         sock.send_to(&result.to_bytes(), &src).unwrap();
     }
 }

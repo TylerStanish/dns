@@ -1,8 +1,7 @@
 use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
-use crate::client;
 use crate::query::DnsQuery;
-use crate::header::DnsHeader;
+use crate::header::{DnsHeader, ResourceType};
 use crate::serialization::{FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -42,8 +41,8 @@ impl DnsPacket {
 }
 
 impl FromBytes for DnsPacket {
-    fn from_bytes(mut bytes: &[u8]) -> (Self, usize) {
-        let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]);
+    fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), ()> {
+        let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12])?;
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
@@ -52,36 +51,36 @@ impl FromBytes for DnsPacket {
         let mut additional = Vec::with_capacity(header.additional_count as usize);
         bytes.resize_from(total_num_read);
         for _ in 0..header.questions_count {
-            let (query, num_read) = DnsQuery::from_bytes(&bytes);
+            let (query, num_read) = DnsQuery::from_bytes(&bytes)?;
             queries.push(query);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.answers_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
             answers.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.authority_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
             authority.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.additional_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes);
+            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
             additional.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
-        (DnsPacket {
+        Ok((DnsPacket {
             header,
             queries,
             answers,
             authority,
             additional,
-        }, total_num_read)
+        }, total_num_read))
     }
 }
 
@@ -165,16 +164,16 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes).unwrap();
         let mut expected_packet = DnsPacket::new();
         expected_packet.header.questions_count = 2;
         let mut foo_query = DnsQuery::new();
         foo_query.name = "foo.com".to_owned();
-        foo_query.qtype = 1;
+        foo_query.qtype = ResourceType::A;
         foo_query.class = 1;
         let mut purdue_query = DnsQuery::new();
         purdue_query.name = "purdue.edu".to_owned();
-        purdue_query.qtype = 1;
+        purdue_query.qtype = ResourceType::A;
         purdue_query.class = 1;
         expected_packet.queries = vec![foo_query, purdue_query];
         expected_packet.answers = Vec::new();
@@ -201,7 +200,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ].to_vec();
-        let (packet, _) = DnsPacket::from_bytes(&mut bytes);
+        let (packet, _) = DnsPacket::from_bytes(&mut bytes).unwrap();
         assert_eq!(packet.to_bytes().to_vec(), bytes);
     }
 
@@ -223,11 +222,11 @@ mod tests {
             0xbe, 0xef,
             0xde, 0xca, 0xfb, 0xad,
         ];
-        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
         let mut answer = DnsAnswer::new();
         answer.name = "foo.com".to_owned();
-        answer.qtype = 0xabcd;
+        answer.qtype = ResourceType::AAAA;
         answer.class = 0x0123;
         answer.ttl = 0x456789ab;
         answer.data_length = 0xbeef;
@@ -262,18 +261,18 @@ mod tests {
             0xbe, 0xef,
             0xde, 0xca, 0xfb, 0xad,
         ];
-        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
         let mut foo_answer = DnsAnswer::new();
         foo_answer.name = "foo.com".to_owned();
-        foo_answer.qtype = 0xabcd;
+        foo_answer.qtype = ResourceType::AAAA;
         foo_answer.class = 0x0123;
         foo_answer.ttl = 0x456789ab;
         foo_answer.data_length = 0xbeef;
         foo_answer.address = 0xdecafbad;
         let mut bar_answer = DnsAnswer::new();
         bar_answer.name = "bar.com".to_owned();
-        bar_answer.qtype = 0xabcd;
+        bar_answer.qtype = ResourceType::AAAA;
         bar_answer.class = 0x0123;
         bar_answer.ttl = 0x456789ab;
         bar_answer.data_length = 0xbeef;
@@ -308,7 +307,7 @@ mod tests {
             0xbe, 0xef,
             0xde, 0xca, 0xfb, 0xad,
         ];
-        let (packet, num_read) = DnsPacket::from_bytes(&bytes);
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
         assert_eq!(packet.to_bytes().to_vec(), bytes.to_vec());
     }
