@@ -129,7 +129,7 @@ impl DnsHeader {
 }
 
 impl FromBytes for DnsHeader {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self> {
         let tx_id = NetworkEndian::read_u16(bytes);
         let flags = &bytes[2..4];
         let questions_count = NetworkEndian::read_u16(&bytes[4..6]);

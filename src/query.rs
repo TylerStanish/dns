@@ -32,12 +32,15 @@ impl FromBytes for DnsQuery {
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self> {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
         let (name, curr_byte) = deserialize_domain_from_bytes(&bytes);
-        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte + 2]).try_into()?;
+        let qtype = match NetworkEndian::read_u16(&bytes[curr_byte..curr_byte + 2]).try_into() {
+            Ok(code) => code,
+            Err(code) => return Err(DnsQuery::new()),
+        };
         let class = NetworkEndian::read_u16(&bytes[curr_byte + 2..curr_byte + 4]);
         // resize the slice so the caller of this function can continue
         // and not have to do any arithmetic or handle a tuple return type

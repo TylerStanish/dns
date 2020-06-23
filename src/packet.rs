@@ -41,8 +41,8 @@ impl DnsPacket {
 }
 
 impl FromBytes for DnsPacket {
-    fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
-        let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12])?;
+    fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), Self> {
+        let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]).unwrap();
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
         let mut queries = Vec::with_capacity(header.questions_count as usize);
@@ -51,25 +51,37 @@ impl FromBytes for DnsPacket {
         let mut additional = Vec::with_capacity(header.additional_count as usize);
         bytes.resize_from(total_num_read);
         for _ in 0..header.questions_count {
-            let (query, num_read) = DnsQuery::from_bytes(&bytes)?;
+            let (query, num_read) = match DnsQuery::from_bytes(&bytes) {
+                Ok(tup) => tup,
+                Err(_) => continue,
+            };
             queries.push(query);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.answers_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
+            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+                Ok(tup) => tup,
+                Err(_) => continue,
+            };
             answers.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.authority_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
+            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+                Ok(tup) => tup,
+                Err(_) => continue,
+            };
             authority.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
         for _ in 0..header.additional_count {
-            let (answer, num_read) = DnsAnswer::from_bytes(&bytes)?;
+            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+                Ok(tup) => tup,
+                Err(_) => continue,
+            };
             additional.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);

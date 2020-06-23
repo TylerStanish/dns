@@ -28,13 +28,13 @@ impl DnsAnswer {
 }
 
 impl FromBytes for DnsAnswer {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self> {
         let (name, mut bytes_read) = deserialize_domain_from_bytes(&bytes);
         // TODO check qtype (rr type) here. For now we only want 1 (A)
         let qtype = match NetworkEndian::read_u16(&bytes[bytes_read..]) {
             1 => ResourceType::A,
             28 => ResourceType::AAAA,
-            _ => return Err(ResponseCode::NotImplemented),
+            _ => return Err(DnsAnswer::new()),
         };
         bytes_read += 2;
         let class = NetworkEndian::read_u16(&bytes[bytes_read..]);

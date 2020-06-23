@@ -1,9 +1,13 @@
+use crate::packet::DnsPacket;
 use crate::header::ResponseCode;
 
 pub trait FromBytes: Sized {
     // for some reason, when the return type is Self, we
     // don't need `: Sized` but when it is like below (Self in a tuple), we do, ugh
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode>;
+    // We need the result here because we need to know if we need to exit early when parsing. We could
+    // say, return 0 in the tuple but that's not as good as Result. Also we need this
+    // to be able to keep the transaction id in the header as a response
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self>;
 }
 
 pub trait ToBytes {
