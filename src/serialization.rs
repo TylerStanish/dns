@@ -1,6 +1,7 @@
 use crate::header::ResponseCode;
 
-pub trait FromBytes: Sized { // for some reason, when the return type is Self, we
+pub trait FromBytes: Sized {
+    // for some reason, when the return type is Self, we
     // don't need `: Sized` but when it is like below (Self in a tuple), we do, ugh
     fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode>;
 }
@@ -34,7 +35,7 @@ pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (String, usize) {
         }
         curr_byte += len as usize;
         if bytes[curr_byte] == 0 {
-            break
+            break;
         }
         name.push('.');
     }

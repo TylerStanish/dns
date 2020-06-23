@@ -1,7 +1,7 @@
-use std::net::UdpSocket;
-use crate::serialization::{FromBytes, ToBytes};
-use crate::packet;
 use crate::answer;
+use crate::packet;
+use crate::serialization::{FromBytes, ToBytes};
+use std::net::UdpSocket;
 
 pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     let mut res = packet::DnsPacket::new();
@@ -22,7 +22,8 @@ pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
 }
 
 pub fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
-    let socket = UdpSocket::bind(("0.0.0.0", 4589)).expect("Could not initialize listening port, is the port already taken?");
+    let socket = UdpSocket::bind(("0.0.0.0", 4589))
+        .expect("Could not initialize listening port, is the port already taken?");
     socket.send_to(&req.to_bytes(), (host, 53)).unwrap();
     let mut res = [0; 1024];
     socket.recv_from(&mut res).unwrap();

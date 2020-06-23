@@ -1,6 +1,6 @@
-use std::convert::TryInto;
-use byteorder::{ByteOrder, NetworkEndian};
 use crate::serialization::{FromBytes, ToBytes};
+use byteorder::{ByteOrder, NetworkEndian};
+use std::convert::TryInto;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceType {
@@ -136,21 +136,24 @@ impl FromBytes for DnsHeader {
         let answers_count = NetworkEndian::read_u16(&bytes[6..8]);
         let authority_count = NetworkEndian::read_u16(&bytes[8..10]);
         let additional_count = NetworkEndian::read_u16(&bytes[10..12]);
-        Ok((DnsHeader {
-            tx_id,
-            is_response: flags[0] & 0x80 > 0,
-            opcode: Self::opcode(&flags[0]),
-            authoritative: flags[0] & 0x04 > 0,
-            truncated: flags[0] & 0x02 > 0,
-            recursion_desired: flags[0] & 0x01 > 0,
-            recursion_available: flags[1] & 0x80 > 0,
-            z: (flags[1] & 0x70) >> 4,
-            response_code: (flags[1] & 0x0f).try_into().unwrap(),
-            questions_count,
-            answers_count,
-            authority_count,
-            additional_count,
-        }, 12))
+        Ok((
+            DnsHeader {
+                tx_id,
+                is_response: flags[0] & 0x80 > 0,
+                opcode: Self::opcode(&flags[0]),
+                authoritative: flags[0] & 0x04 > 0,
+                truncated: flags[0] & 0x02 > 0,
+                recursion_desired: flags[0] & 0x01 > 0,
+                recursion_available: flags[1] & 0x80 > 0,
+                z: (flags[1] & 0x70) >> 4,
+                response_code: (flags[1] & 0x0f).try_into().unwrap(),
+                questions_count,
+                answers_count,
+                authority_count,
+                additional_count,
+            },
+            12,
+        ))
     }
 }
 
@@ -183,7 +186,6 @@ impl ToBytes for DnsHeader {
         NetworkEndian::write_u16(&mut res[10..], self.additional_count);
         res.to_vec()
     }
-
 }
 
 #[cfg(test)]
@@ -297,12 +299,7 @@ mod tests {
         header.additional_count = 0xabcd;
         let actual_bytes = header.to_bytes();
         let expected_bytes = [
-            0xbeu8, 0xef,
-            0x87, 0x85,
-            0xab, 0xcd,
-            0xab, 0xcd,
-            0xab, 0xcd,
-            0xab, 0xcd,
+            0xbeu8, 0xef, 0x87, 0x85, 0xab, 0xcd, 0xab, 0xcd, 0xab, 0xcd, 0xab, 0xcd,
         ];
         assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
@@ -317,12 +314,7 @@ mod tests {
         header.z = 7;
         let actual_bytes = header.to_bytes();
         let expected_bytes = [
-            0xbeu8, 0xef,
-            0x00, 0x70,
-            0x00, 0x00,
-            0x00, 0x00,
-            0x00, 0x00,
-            0x00, 0x00,
+            0xbeu8, 0xef, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }
@@ -335,12 +327,7 @@ mod tests {
         header.z = 32;
         let actual_bytes = header.to_bytes();
         let expected_bytes = [
-            0xbeu8, 0xef,
-            0x00, 0x00,
-            0x00, 0x00,
-            0x00, 0x00,
-            0x00, 0x00,
-            0x00, 0x00,
+            0xbeu8, 0xef, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ];
         assert_eq!(expected_bytes.to_vec(), actual_bytes);
     }

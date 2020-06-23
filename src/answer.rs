@@ -1,7 +1,8 @@
+use crate::header::{ResourceType, ResponseCode};
+use crate::serialization::{
+    deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes,
+};
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
-use crate::header::{ResponseCode, ResourceType};
-use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DnsAnswer {
@@ -24,7 +25,6 @@ impl DnsAnswer {
             address: 0,
         }
     }
-
 }
 
 impl FromBytes for DnsAnswer {
@@ -46,14 +46,17 @@ impl FromBytes for DnsAnswer {
         // TODO ay, assuming ipv4. What if the resolver returns an ipv6 addr?
         let address = NetworkEndian::read_u32(&bytes[bytes_read..]);
         bytes_read += 4;
-        Ok((DnsAnswer {
-            name,
-            qtype,
-            class,
-            ttl,
-            data_length,
-            address,
-        }, bytes_read))
+        Ok((
+            DnsAnswer {
+                name,
+                qtype,
+                class,
+                ttl,
+                data_length,
+                address,
+            },
+            bytes_read,
+        ))
     }
 }
 
@@ -94,29 +97,18 @@ mod tests {
         ans.address = 0xdecafbad;
         let actual_bytes = ans.to_bytes();
         let expected_bytes = [
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x62, 0x61, 0x72,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x01,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
-        ].to_vec();
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
+            0x01, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
+        ]
+        .to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
 
     #[test]
     fn test_dns_answer_from_bytes() {
         let bytes = [
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x62, 0x61, 0x72,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x1c,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
+            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
         ];
         let mut expected_answer = DnsAnswer::new();
         expected_answer.name = "foo.bar.com".to_owned();
@@ -132,14 +124,8 @@ mod tests {
     #[test]
     fn test_from_bytes_and_to_bytes() {
         let expected_bytes = [
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x62, 0x61, 0x72,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x1c,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
+            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
         ];
         let (answer, num_read) = DnsAnswer::from_bytes(&expected_bytes).unwrap();
         assert_eq!(expected_bytes.len(), num_read);

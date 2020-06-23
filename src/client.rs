@@ -1,12 +1,11 @@
-use std::mem;
-use std::net::UdpSocket;
 use crate::answer::DnsAnswer;
 use crate::cache::Cache;
 use crate::header::ResponseCode;
-use crate::query::DnsQuery;
 use crate::packet::DnsPacket;
+use crate::query::DnsQuery;
 use crate::serialization::{FromBytes, ToBytes};
-
+use std::mem;
+use std::net::UdpSocket;
 
 pub struct DnsClient<'a, F>
 where
@@ -21,10 +20,7 @@ where
     F: Fn(&str, DnsPacket) -> DnsPacket,
 {
     pub fn new(resolver: F, cache: &'a mut Cache) -> Self {
-        DnsClient {
-            resolver,
-            cache,
-        }
+        DnsClient { resolver, cache }
     }
 
     /// Given `self` is a request packet, `results()` will return the packet
@@ -75,19 +71,18 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::time::Duration;
     use ttl_cache::TtlCache;
-    use super::*;
 
     #[test]
     fn accepts_single_question_only() {
         // Doesn't compile:
         // let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut TtlCache::new(0));
         let mut cache = TtlCache::new(0);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
         let res = client.results(req);
@@ -101,7 +96,7 @@ mod tests {
         answer.name = "12.34.56.78".to_owned();
         let mut cache = TtlCache::new(1);
         cache.insert(query.clone(), answer.clone(), Duration::from_secs(10));
-        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
@@ -114,7 +109,7 @@ mod tests {
         let mut query = DnsQuery::new();
         query.name = "invalid domain".to_owned();
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| {req}, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];

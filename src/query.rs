@@ -1,7 +1,9 @@
-use std::convert::TryInto;
+use crate::header::{ResourceType, ResponseCode};
+use crate::serialization::{
+    deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes,
+};
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
-use crate::header::{ResponseCode, ResourceType};
-use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
+use std::convert::TryInto;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct DnsQuery {
@@ -18,7 +20,6 @@ impl DnsQuery {
             class: 0,
         }
     }
-
 }
 
 impl FromBytes for DnsQuery {
@@ -36,18 +37,14 @@ impl FromBytes for DnsQuery {
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
         let (name, curr_byte) = deserialize_domain_from_bytes(&bytes);
-        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte+2]).try_into()?;
-        let class = NetworkEndian::read_u16(&bytes[curr_byte+2..curr_byte+4]);
+        let qtype = NetworkEndian::read_u16(&bytes[curr_byte..curr_byte + 2]).try_into()?;
+        let class = NetworkEndian::read_u16(&bytes[curr_byte + 2..curr_byte + 4]);
         // resize the slice so the caller of this function can continue
         // and not have to do any arithmetic or handle a tuple return type
         // or extra pointer variable
         // UPDATE unfortunately, I don't know if there's a way to mutate a param
         // like this, even having `mut: &mut`
-        Ok((DnsQuery {
-            name,
-            qtype,
-            class,
-        }, curr_byte+4))
+        Ok((DnsQuery { name, qtype, class }, curr_byte + 4))
     }
 }
 
@@ -105,8 +102,7 @@ mod tests {
     fn test_query_from_bytes_with_subdomain() {
         let mut bytes = [
             0x03u8, // length of 'foo'
-            0x66, 0x6f, 0x6f, 
-            0x03, // length of 'bar'
+            0x66, 0x6f, 0x6f, 0x03, // length of 'bar'
             0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, // foo.bar.com
             0x00, 0x01, // a record
             0x00, 0x01, // class
@@ -139,9 +135,9 @@ mod tests {
             0x03u8, 0x66u8, 0x6f, 0x6f, // foo
             0x03, 0x62, 0x61, 0x72, // bar
             0x03, 0x63, 0x6f, 0x6d, 0x00, // com
-            0x00, 0x1c,
-            0x01, 0x23,
-        ].to_vec();
+            0x00, 0x1c, 0x01, 0x23,
+        ]
+        .to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
 }

@@ -1,5 +1,5 @@
-use std::net::UdpSocket;
 use serialization::{FromBytes, ToBytes};
+use std::net::UdpSocket;
 use ttl_cache::TtlCache;
 
 mod answer;

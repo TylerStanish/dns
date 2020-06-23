@@ -1,8 +1,8 @@
-use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
+use crate::header::{DnsHeader, ResourceType, ResponseCode};
 use crate::query::DnsQuery;
-use crate::header::{DnsHeader, ResponseCode, ResourceType};
 use crate::serialization::{FromBytes, ToBytes};
+use resize_slice::ResizeSlice;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DnsPacket {
@@ -74,13 +74,16 @@ impl FromBytes for DnsPacket {
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
-        Ok((DnsPacket {
-            header,
-            queries,
-            answers,
-            authority,
-            additional,
-        }, total_num_read))
+        Ok((
+            DnsPacket {
+                header,
+                queries,
+                answers,
+                authority,
+                additional,
+            },
+            total_num_read,
+        ))
     }
 }
 
@@ -88,10 +91,34 @@ impl ToBytes for DnsPacket {
     fn to_bytes(&self) -> Vec<u8> {
         let mut res = Vec::new();
         res.append(&mut self.header.to_bytes().to_vec());
-        res.append(&mut self.queries.iter().flat_map(|query| query.to_bytes()).collect::<Vec<u8>>());
-        res.append(&mut self.answers.iter().flat_map(|answer| answer.to_bytes()).collect::<Vec<u8>>());
-        res.append(&mut self.authority.iter().flat_map(|authority| authority.to_bytes()).collect::<Vec<u8>>());
-        res.append(&mut self.additional.iter().flat_map(|additional| additional.to_bytes()).collect::<Vec<u8>>());
+        res.append(
+            &mut self
+                .queries
+                .iter()
+                .flat_map(|query| query.to_bytes())
+                .collect::<Vec<u8>>(),
+        );
+        res.append(
+            &mut self
+                .answers
+                .iter()
+                .flat_map(|answer| answer.to_bytes())
+                .collect::<Vec<u8>>(),
+        );
+        res.append(
+            &mut self
+                .authority
+                .iter()
+                .flat_map(|authority| authority.to_bytes())
+                .collect::<Vec<u8>>(),
+        );
+        res.append(
+            &mut self
+                .additional
+                .iter()
+                .flat_map(|additional| additional.to_bytes())
+                .collect::<Vec<u8>>(),
+        );
         res
     }
 }
@@ -199,7 +226,8 @@ mod tests {
             0x70, 0x75, 0x72, 0x64, 0x75, 0x65, 0x03, 0x65, 0x66, 0x75, 0x00, // purdue.edu
             0x00, 0x01, // a record
             0x00, 0x01, // class
-        ].to_vec();
+        ]
+        .to_vec();
         let (packet, _) = DnsPacket::from_bytes(&mut bytes).unwrap();
         assert_eq!(packet.to_bytes().to_vec(), bytes);
     }
@@ -211,16 +239,9 @@ mod tests {
             0x80, 0x00, // flags (standard query response)
             0x00, 0x00, // 0 questions
             0x00, 0x01, // 1 answer
-            0x00, 0x00,
-            0x00, 0x00,
-            // answer
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x1c,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
+            0x00, 0x00, 0x00, 0x00, // answer
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
         ];
         let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
@@ -241,25 +262,12 @@ mod tests {
             0x80, 0x00, // flags (standard query response)
             0x00, 0x00, // 0 questions
             0x00, 0x02, // 2 answers
-            0x00, 0x00,
-            0x00, 0x00,
-            // answers
+            0x00, 0x00, 0x00, 0x00, // answers
             //foo.com
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x1c,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
-            // bar.com
-            0x03, 0x62, 0x61, 0x72,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x1c,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad, // bar.com
+            0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
         ];
         let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
@@ -287,25 +295,12 @@ mod tests {
             0x80, 0x00, // flags (standard query response)
             0x00, 0x00, // 0 questions
             0x00, 0x00, // 2 answers
-            0x00, 0x01,
-            0x00, 0x01,
-            // answers
+            0x00, 0x01, 0x00, 0x01, // answers
             //foo.com
-            0x03u8, 0x66, 0x6f, 0x6f,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x01,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
-            // bar.com
-            0x03, 0x62, 0x61, 0x72,
-            0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0x00, 0x01,
-            0x01, 0x23,
-            0x45, 0x67, 0x89, 0xab,
-            0xbe, 0xef,
-            0xde, 0xca, 0xfb, 0xad,
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x01, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad, // bar.com
+            0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x01, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
         ];
         let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
         assert_eq!(bytes.len(), num_read);
