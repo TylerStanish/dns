@@ -4,6 +4,7 @@ use crate::serialization::{FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceType {
+    Unused,
     A,
     AAAA,
 }
@@ -11,6 +12,7 @@ pub enum ResourceType {
 impl ResourceType {
     pub fn as_u16(&self) -> u16 {
         match self {
+            Self::Unused => 0,
             Self::A => 1,
             Self::AAAA => 28,
             _ => 0, // FIXME should this be 0?
@@ -19,12 +21,13 @@ impl ResourceType {
 }
 
 impl TryInto<ResourceType> for u16 {
-    type Error = ();
+    type Error = ResponseCode;
     fn try_into(self) -> Result<ResourceType, Self::Error> {
         match self {
+            0 => Ok(ResourceType::Unused),
             1 => Ok(ResourceType::A),
             28 => Ok(ResourceType::AAAA),
-            _ => Err(()),
+            _ => Err(ResponseCode::NotImplemented),
         }
     }
 }
@@ -40,7 +43,7 @@ pub enum ResponseCode {
 }
 
 impl ResponseCode {
-    pub fn to_u8(&self) -> u8 {
+    pub fn as_u8(&self) -> u8 {
         match self {
             Self::NoError => 0,
             Self::FormatError => 1,
@@ -126,7 +129,7 @@ impl DnsHeader {
 }
 
 impl FromBytes for DnsHeader {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ()> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
         let tx_id = NetworkEndian::read_u16(bytes);
         let flags = &bytes[2..4];
         let questions_count = NetworkEndian::read_u16(&bytes[4..6]);
@@ -171,7 +174,7 @@ impl ToBytes for DnsHeader {
         // TODO `&` each value you add with its max value!!!
         flags += (self.z & 0x07) as u16;
         flags <<= 4;
-        flags += (self.response_code & 0x0f) as u16;
+        flags += (self.response_code.as_u8() & 0x0f) as u16;
         res[2] = ((flags & 0xff00) >> 8) as u8;
         res[3] = (flags & 0x00ff) as u8;
         NetworkEndian::write_u16(&mut res[4..], self.questions_count);
@@ -223,7 +226,7 @@ mod tests {
         expected_header.recursion_desired = true;
         expected_header.recursion_available = true;
         expected_header.questions_count = 1;
-        expected_header.response_code = 5;
+        expected_header.response_code = ResponseCode::Refused;
 
         assert_eq!(expected_header, actual_header);
     }
@@ -246,7 +249,7 @@ mod tests {
         expected_header.recursion_desired = true;
         expected_header.recursion_available = true;
         expected_header.questions_count = 1;
-        expected_header.response_code = 5;
+        expected_header.response_code = ResponseCode::Refused;
 
         assert_eq!(expected_header, actual_header);
     }
@@ -287,7 +290,7 @@ mod tests {
         header.truncated = true;
         header.recursion_desired = true;
         header.recursion_available = true;
-        header.response_code = 5;
+        header.response_code = ResponseCode::Refused;
         header.questions_count = 0xabcd;
         header.answers_count = 0xabcd;
         header.authority_count = 0xabcd;
@@ -347,7 +350,7 @@ mod tests {
     fn test_multibit_from_bytes_and_bounds() {
         let mut bytes = [
             0xffu8, 0xff, // transaction id
-            0x48, 0x79, // flags (standard query request)
+            0x48, 0x75, // flags (standard query request)
             0x00, 0x00, // 1 question
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
@@ -358,7 +361,7 @@ mod tests {
         expected_header.tx_id = 0xffff;
         expected_header.opcode = 9;
         expected_header.z = 7;
-        expected_header.response_code = 9.try_into().unwrap();
+        expected_header.response_code = ResponseCode::Refused;
 
         assert_eq!(expected_header, actual_header);
     }

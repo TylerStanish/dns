@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
-use crate::header::ResourceType;
+use crate::header::{ResponseCode, ResourceType};
 use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -14,7 +14,7 @@ impl DnsQuery {
     pub fn new() -> Self {
         DnsQuery {
             name: String::new(),
-            qtype: ResourceType::A,
+            qtype: ResourceType::Unused,
             class: 0,
         }
     }
@@ -31,7 +31,7 @@ impl FromBytes for DnsQuery {
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ()> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
@@ -55,7 +55,7 @@ impl ToBytes for DnsQuery {
     fn to_bytes(&self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
         res.append(&mut serialize_domain_to_bytes(&self.name));
-        res.write_u16::<NetworkEndian>(self.qtype).unwrap();
+        res.write_u16::<NetworkEndian>(self.qtype.as_u16()).unwrap();
         res.write_u16::<NetworkEndian>(self.class).unwrap();
         res
     }
@@ -78,7 +78,7 @@ mod tests {
         let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
-        expected_query.qtype = 1;
+        expected_query.qtype = ResourceType::A;
         expected_query.class = 1;
 
         assert_eq!(expected_query, actual_query);
@@ -139,7 +139,7 @@ mod tests {
             0x03u8, 0x66u8, 0x6f, 0x6f, // foo
             0x03, 0x62, 0x61, 0x72, // bar
             0x03, 0x63, 0x6f, 0x6d, 0x00, // com
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
         ].to_vec();
         assert_eq!(expected_bytes, actual_bytes);

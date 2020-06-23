@@ -15,7 +15,7 @@ pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     answer.name = req.queries[0].name.clone();
     answer.class = 1;
     answer.data_length = 4;
-    answer.qtype = req.queries[0].qtype;
+    answer.qtype = req.queries[0].qtype.clone();
     res.answers = vec![answer];
     res.queries = req.queries;
     res

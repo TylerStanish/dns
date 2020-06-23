@@ -1,7 +1,7 @@
 use resize_slice::ResizeSlice;
 use crate::answer::DnsAnswer;
 use crate::query::DnsQuery;
-use crate::header::{DnsHeader, ResourceType};
+use crate::header::{DnsHeader, ResponseCode, ResourceType};
 use crate::serialization::{FromBytes, ToBytes};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -27,7 +27,7 @@ impl DnsPacket {
         }
     }
 
-    pub fn new_error(err: u8) -> Self {
+    pub fn new_error(err: ResponseCode) -> Self {
         let mut packet = DnsPacket::new_response();
         packet.header.response_code = err;
         packet
@@ -41,7 +41,7 @@ impl DnsPacket {
 }
 
 impl FromBytes for DnsPacket {
-    fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), ()> {
+    fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
         let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12])?;
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
@@ -106,12 +106,12 @@ mod tests {
         let mut bytes = [
             0x00u8, 0x00, // transaction id
             0x00, 0x00, // flags (standard query request)
-            0x00, 0x00, // 1 question
+            0x00, 0x00, // 0 questions
             0x00, 0x00, // dns request, so no answer rr's here of course
             0x00, 0x00, // neither authority rr's
             0x00, 0x00, // nor additional rr's
         ];
-        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes).unwrap();
         let mut expected_packet = DnsPacket::new();
         expected_packet.header = DnsHeader::new();
 
@@ -132,12 +132,12 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes);
+        let (actual_packet, _) = DnsPacket::from_bytes(&mut bytes).unwrap();
         let mut expected_packet = DnsPacket::new();
         expected_packet.header.questions_count = 1;
         let mut query = DnsQuery::new();
         query.name = "foo.com".to_owned();
-        query.qtype = 1;
+        query.qtype = ResourceType::A;
         query.class = 1;
         expected_packet.queries = vec![query];
         expected_packet.answers = Vec::new();
@@ -216,7 +216,7 @@ mod tests {
             // answer
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -247,7 +247,7 @@ mod tests {
             //foo.com
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -255,7 +255,7 @@ mod tests {
             // bar.com
             0x03, 0x62, 0x61, 0x72,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -293,7 +293,7 @@ mod tests {
             //foo.com
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x01,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -301,7 +301,7 @@ mod tests {
             // bar.com
             0x03, 0x62, 0x61, 0x72,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x01,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,

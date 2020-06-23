@@ -1,5 +1,5 @@
 use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
-use crate::header::ResourceType;
+use crate::header::{ResponseCode, ResourceType};
 use crate::serialization::{deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes};
 
 
@@ -17,7 +17,7 @@ impl DnsAnswer {
     pub fn new() -> Self {
         DnsAnswer {
             name: String::new(),
-            qtype: ResourceType::A,
+            qtype: ResourceType::Unused,
             class: 0,
             ttl: 0,
             data_length: 0,
@@ -28,11 +28,13 @@ impl DnsAnswer {
 }
 
 impl FromBytes for DnsAnswer {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ()> {
+    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), ResponseCode> {
         let (name, mut bytes_read) = deserialize_domain_from_bytes(&bytes);
         // TODO check qtype (rr type) here. For now we only want 1 (A)
         let qtype = match NetworkEndian::read_u16(&bytes[bytes_read..]) {
             1 => ResourceType::A,
+            28 => ResourceType::AAAA,
+            _ => return Err(ResponseCode::NotImplemented),
         };
         bytes_read += 2;
         let class = NetworkEndian::read_u16(&bytes[bytes_read..]);
@@ -85,7 +87,7 @@ mod tests {
     fn test_dns_answer_to_bytes() {
         let mut ans = DnsAnswer::new();
         ans.name = "foo.bar.com".to_owned();
-        ans.qtype = 0xabcd.try_into().unwrap();
+        ans.qtype = ResourceType::A;
         ans.class = 0x0123;
         ans.ttl = 0x456789ab;
         ans.data_length = 0xbeef;
@@ -95,7 +97,7 @@ mod tests {
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x62, 0x61, 0x72,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x01,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -110,7 +112,7 @@ mod tests {
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x62, 0x61, 0x72,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,
@@ -118,7 +120,7 @@ mod tests {
         ];
         let mut expected_answer = DnsAnswer::new();
         expected_answer.name = "foo.bar.com".to_owned();
-        expected_answer.qtype = 0xabcd.try_into().unwrap();
+        expected_answer.qtype = ResourceType::AAAA;
         expected_answer.class = 0x0123;
         expected_answer.ttl = 0x456789ab;
         expected_answer.data_length = 0xbeef;
@@ -133,7 +135,7 @@ mod tests {
             0x03u8, 0x66, 0x6f, 0x6f,
             0x03, 0x62, 0x61, 0x72,
             0x03, 0x63, 0x6f, 0x6d, 0x00,
-            0xab, 0xcd,
+            0x00, 0x1c,
             0x01, 0x23,
             0x45, 0x67, 0x89, 0xab,
             0xbe, 0xef,

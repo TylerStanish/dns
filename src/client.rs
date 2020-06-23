@@ -2,6 +2,7 @@ use std::mem;
 use std::net::UdpSocket;
 use crate::answer::DnsAnswer;
 use crate::cache::Cache;
+use crate::header::ResponseCode;
 use crate::query::DnsQuery;
 use crate::packet::DnsPacket;
 use crate::serialization::{FromBytes, ToBytes};
@@ -40,7 +41,7 @@ where
         let mut res = req.clone();
         if req.header.questions_count > 1 {
             // failed
-            res.header.response_code = 4;
+            res.header.response_code = ResponseCode::NotImplemented;
             return res;
         }
         let mut answers: Vec<DnsAnswer> = Vec::new();
@@ -58,7 +59,7 @@ where
             let parts = query.name.split(".").collect::<Vec<&str>>();
             if parts.len() < 2 {
                 // invalid domain
-                res.header.response_code = 3;
+                res.header.response_code = ResponseCode::NameError;
                 res.header.is_response = true;
                 return res;
             }
@@ -90,7 +91,7 @@ mod tests {
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
         let res = client.results(req);
-        assert_eq!(res.header.response_code, 4);
+        assert_eq!(res.header.response_code, ResponseCode::NotImplemented);
     }
 
     #[test]
@@ -118,6 +119,6 @@ mod tests {
         req.header.questions_count = 1;
         req.queries = vec![query];
         let res = client.results(req);
-        assert_eq!(res.header.response_code, 3);
+        assert_eq!(res.header.response_code, ResponseCode::NameError);
     }
 }
