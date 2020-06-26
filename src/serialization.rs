@@ -47,6 +47,10 @@ pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (String, usize) {
     (name, curr_byte)
 }
 
+pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> (String, usize) {
+    unimplemented!()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,5 +97,10 @@ mod tests {
         let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes);
         assert_eq!("foo.bar.com", actual_bytes);
         assert_eq!(13, bytes_read);
+    }
+
+    #[test]
+    fn test_expand_pointers() {
+        unimplemented!();
     }
 }
