@@ -20,7 +20,7 @@ fn main() {
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
         let result = match packet::DnsPacket::from_bytes(&mut buf[..nread]) {
             Ok((packet, _)) => client.results(packet),
-            Err(packet) => {
+            Err(_) => {
                 let mut packet = packet::DnsPacket::new();
                 packet.header.response_code = header::ResponseCode::FormatError;
                 packet

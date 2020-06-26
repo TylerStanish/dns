@@ -44,7 +44,7 @@ impl FromBytes for DnsAnswer {
         let data_length = NetworkEndian::read_u16(&bytes[bytes_read..]);
         bytes_read += 2;
         // TODO ay, assuming ipv4. What if the resolver returns an ipv6 addr?
-        let rdata = bytes[bytes_read..(bytes_read+data_length as usize)].to_vec();
+        let rdata = bytes[bytes_read..(bytes_read + data_length as usize)].to_vec();
         bytes_read += 4;
         Ok((
             DnsAnswer {
