@@ -60,8 +60,9 @@ where
                 return res;
             }
             let tld = parts.last();
-            // get the authoritative server for this tld
             let res = (self.resolver)("1.1.1.1", req);
+            // TODO If we got any answers, return them. Else check any authoritative records
+            // and recurse
             res
         }
     }

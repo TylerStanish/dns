@@ -1,5 +1,5 @@
-use crate::packet::DnsPacket;
 use crate::header::ResponseCode;
+use crate::packet::DnsPacket;
 
 pub trait FromBytes: Sized {
     // for some reason, when the return type is Self, we

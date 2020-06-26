@@ -12,7 +12,7 @@ pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     res.header.additional_count = 0;
     res.header.authority_count = 0;
     let mut answer = answer::DnsAnswer::new();
-    answer.address = 0xbeefbeef;
+    answer.rdata = vec![0xde, 0xca, 0xfb, 0xad];
     answer.name = req.queries[0].name.clone();
     answer.class = 1;
     answer.data_length = 4;
@@ -28,7 +28,8 @@ pub fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket
     socket.send_to(&req.to_bytes(), (host, 53)).unwrap();
     let mut res = [0; 1024];
     socket.recv_from(&mut res).unwrap();
-    let res = match packet::DnsPacket::from_bytes(&mut res) { // TODO PLEASE don't assume the server returns a correct response!
+    let res = match packet::DnsPacket::from_bytes(&mut res) {
+        // TODO PLEASE don't assume the server returns a correct response!
         Ok((packet, _)) => packet,
         Err(packet) => packet,
     };

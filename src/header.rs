@@ -6,6 +6,7 @@ use std::convert::TryInto;
 pub enum ResourceType {
     Unused,
     A,
+    CName,
     AAAA,
 }
 
@@ -14,6 +15,7 @@ impl ResourceType {
         match self {
             Self::Unused => 0,
             Self::A => 1,
+            Self::CName => 5,
             Self::AAAA => 28,
             _ => 0, // FIXME should this be 0?
         }
@@ -26,6 +28,7 @@ impl TryInto<ResourceType> for u16 {
         match self {
             0 => Ok(ResourceType::Unused),
             1 => Ok(ResourceType::A),
+            5 => Ok(ResourceType::CName),
             28 => Ok(ResourceType::AAAA),
             _ => Err(ResponseCode::NotImplemented),
         }

@@ -11,7 +11,7 @@ pub struct DnsAnswer {
     pub class: u16,
     pub ttl: u32,
     pub data_length: u16,
-    pub address: u32, // ipv4
+    pub rdata: Vec<u8>,
 }
 
 impl DnsAnswer {
@@ -22,7 +22,7 @@ impl DnsAnswer {
             class: 0,
             ttl: 0,
             data_length: 0,
-            address: 0,
+            rdata: vec![],
         }
     }
 }
@@ -44,7 +44,7 @@ impl FromBytes for DnsAnswer {
         let data_length = NetworkEndian::read_u16(&bytes[bytes_read..]);
         bytes_read += 2;
         // TODO ay, assuming ipv4. What if the resolver returns an ipv6 addr?
-        let address = NetworkEndian::read_u32(&bytes[bytes_read..]);
+        let rdata = bytes[bytes_read..(bytes_read+data_length as usize)].to_vec();
         bytes_read += 4;
         Ok((
             DnsAnswer {
@@ -53,7 +53,7 @@ impl FromBytes for DnsAnswer {
                 class,
                 ttl,
                 data_length,
-                address,
+                rdata,
             },
             bytes_read,
         ))
@@ -68,7 +68,7 @@ impl ToBytes for DnsAnswer {
         res.write_u16::<NetworkEndian>(self.class).unwrap();
         res.write_u32::<NetworkEndian>(self.ttl).unwrap();
         res.write_u16::<NetworkEndian>(self.data_length).unwrap();
-        res.write_u32::<NetworkEndian>(self.address).unwrap();
+        res.append(&mut self.rdata.clone());
         res
     }
 }
@@ -82,7 +82,7 @@ mod tests {
     fn test_dns_answer_to_bytes_all_zero() {
         let ans = DnsAnswer::new();
         let actual_bytes = ans.to_bytes();
-        let expected_bytes = [0; 14].to_vec();
+        let expected_bytes = [0; 10].to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
 
@@ -93,12 +93,12 @@ mod tests {
         ans.qtype = ResourceType::A;
         ans.class = 0x0123;
         ans.ttl = 0x456789ab;
-        ans.data_length = 0xbeef;
-        ans.address = 0xdecafbad;
+        ans.data_length = 4;
+        ans.rdata = vec![0xde, 0xca, 0xfb, 0xad];
         let actual_bytes = ans.to_bytes();
         let expected_bytes = [
             0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
-            0x01, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
+            0x01, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
         ]
         .to_vec();
         assert_eq!(expected_bytes, actual_bytes);
@@ -108,15 +108,15 @@ mod tests {
     fn test_dns_answer_from_bytes() {
         let bytes = [
             0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
-            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
+            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
         ];
         let mut expected_answer = DnsAnswer::new();
         expected_answer.name = "foo.bar.com".to_owned();
         expected_answer.qtype = ResourceType::AAAA;
         expected_answer.class = 0x0123;
         expected_answer.ttl = 0x456789ab;
-        expected_answer.data_length = 0xbeef;
-        expected_answer.address = 0xdecafbad;
+        expected_answer.data_length = 4;
+        expected_answer.rdata = vec![0xde, 0xca, 0xfb, 0xad];
         let (actual_answer, _) = DnsAnswer::from_bytes(&bytes).unwrap();
         assert_eq!(expected_answer, actual_answer);
     }
@@ -125,7 +125,7 @@ mod tests {
     fn test_from_bytes_and_to_bytes() {
         let expected_bytes = [
             0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
-            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xbe, 0xef, 0xde, 0xca, 0xfb, 0xad,
+            0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
         ];
         let (answer, num_read) = DnsAnswer::from_bytes(&expected_bytes).unwrap();
         assert_eq!(expected_bytes.len(), num_read);
