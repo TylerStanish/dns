@@ -47,8 +47,32 @@ pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (String, usize) {
     (name, curr_byte)
 }
 
-pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> (String, usize) {
-    unimplemented!()
+pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> Result<Vec<u8>, ()> {
+    let mut res = Vec::new();
+    let mut it = name_bytes.iter().enumerate();
+    while let Some((idx, byte)) = it.next() {
+    //for (idx, byte) in name_bytes.iter().enumerate() {
+        println!("idx: {}, byte: {:x}, byte & 0xc0: {:x}", idx, byte, byte & 0xc0);
+        if byte & 0xc0 == 0xc0 {
+            let mut ptr = (byte & 0x3f) as u16;
+            println!("after &: {}", ptr);
+            ptr <<= 8;
+            println!("after <<=: {}", ptr);
+            if idx+1 >= name_bytes.len() {
+                return Err(()) // compression flag was last byte in sequence
+            }
+            ptr += name_bytes[idx+1] as u16;
+            println!("after +=: {}", ptr);
+            it.next(); // skip the second byte in the compression flag
+            while packet_bytes[ptr as usize] != 0 {
+                res.push(packet_bytes[ptr as usize]);
+                ptr += 1;
+            }
+            res.push(0);
+            break;
+        }
+    }
+    Ok(res)
 }
 
 #[cfg(test)]
@@ -101,6 +125,24 @@ mod tests {
 
     #[test]
     fn test_expand_pointers() {
-        unimplemented!();
+        let first_bytes = [
+            0x00u8, 0x00, // transaction id
+            0x80, 0x00, // flags (standard query response)
+            0x00, 0x00, // 0 questions
+            0x00, 0x02, // 2 answers
+            0x00, 0x00, 0x00, 0x00, // answers
+        ];
+        let second_bytes = [
+            //foo.com
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+        ];
+        let third_bytes = [
+            0xc0u8, 0x0c, 0x04, 0xde, 0xca, 0xfb, 0xad,
+        ];
+        let mut bytes = first_bytes.to_vec();
+        bytes.append(&mut second_bytes.to_vec());
+        bytes.append(&mut third_bytes.to_vec());
+        let res = expand_pointers(&bytes, &third_bytes).unwrap();
+        assert_eq!(second_bytes[..9].to_vec(), res);
     }
 }
