@@ -34,11 +34,10 @@ pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Resul
     if name_len & 0xc0 == 0xc0 {
         return match expand_pointers(packet_bytes, bytes) {
             Ok(name_bytes) => {
-                let mut name = String::new();
-                for byte in name_bytes {
-                    name.push(byte as char);
-                }
-                Ok((name, 2))
+                match deserialize_domain_from_bytes(packet_bytes, &name_bytes) {
+                    Ok((s, _)) => return Ok((s, 2)),
+                    Err(_) => return Err(()),
+                };
             }
             Err(_) => Err(())
         }
@@ -165,6 +164,10 @@ mod tests {
         let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[19..]).unwrap();
         assert_eq!(6, bytes_read);
         assert_eq!("baz.foo.bar.com", actual_bytes);
+
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[23..]).unwrap();
+        assert_eq!(2, bytes_read);
+        assert_eq!("foo.bar.com", actual_bytes);
     }
 
     #[test]
