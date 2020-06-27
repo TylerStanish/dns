@@ -20,23 +20,21 @@ impl DnsQuery {
             class: 0,
         }
     }
-}
 
-impl FromBytes for DnsQuery {
-    /// This function modifies the `bytes` parameter so the caller of this
-    /// function can continue off at the slice's zero index
-    ///
     /// Remember according to the rfc:
     /// 'each label consists of a length octet followed by that
     /// number of octets.  The domain name terminates with the
     /// zero length octet for the null label of the root.  Note
     /// that this field may be an odd number of octets; no
     /// padding is used.'
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self> {
+    pub fn from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Result<(Self, usize), Self> {
         //let ending = bytes.iter().position(|n| *n == 0).unwrap(); // TODO don't unwrap this, handle the bad input user gave us
         //println!("{:?}", std::str::from_utf8(&bytes[..ending]));
 
-        let (name, curr_byte) = deserialize_domain_from_bytes(&bytes);
+        let (name, curr_byte) = match deserialize_domain_from_bytes(&packet_bytes, &bytes) {
+            Ok(tup) => tup,
+            Err(_) => return Err(DnsQuery::new()),
+        };
         let qtype = match NetworkEndian::read_u16(&bytes[curr_byte..curr_byte + 2]).try_into() {
             Ok(code) => code,
             Err(code) => return Err(DnsQuery::new()),
@@ -75,7 +73,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
+        let (actual_query, _) = DnsQuery::from_bytes(&vec![], &mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = ResourceType::A;
@@ -92,7 +90,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
+        let (actual_query, _) = DnsQuery::from_bytes(&vec![], &mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.com".to_owned();
         expected_query.qtype = ResourceType::A;
@@ -110,7 +108,7 @@ mod tests {
             0x00, 0x01, // a record
             0x00, 0x01, // class
         ];
-        let (actual_query, _) = DnsQuery::from_bytes(&mut bytes).unwrap();
+        let (actual_query, _) = DnsQuery::from_bytes(&vec![], &mut bytes).unwrap();
         let mut expected_query = DnsQuery::new();
         expected_query.name = "foo.bar.com".to_owned();
         expected_query.qtype = ResourceType::A;

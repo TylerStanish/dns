@@ -1,3 +1,4 @@
+use std::str;
 use crate::header::ResponseCode;
 use crate::packet::DnsPacket;
 
@@ -27,42 +28,68 @@ pub fn serialize_domain_to_bytes(domain: &str) -> Vec<u8> {
     res
 }
 
-pub fn deserialize_domain_from_bytes(bytes: &[u8]) -> (String, usize) {
+pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Result<(String, usize), ()> {
     let name_len = bytes[0];
+    // the domain might just be the pointer
+    if name_len & 0xc0 == 0xc0 {
+        return match expand_pointers(packet_bytes, bytes) {
+            Ok(name_bytes) => {
+                let mut name = String::new();
+                for byte in name_bytes {
+                    name.push(byte as char);
+                }
+                Ok((name, 2))
+            }
+            Err(_) => Err(())
+        }
+    }
+    // otherwise the domain starts with some characters
     let mut name = String::with_capacity(name_len as usize);
     let mut curr_byte = 0;
     loop {
         let len = bytes[curr_byte];
+        if len & 0xc0 == 0xc0 {
+            match expand_pointers(&packet_bytes, &bytes[0..]) {
+                Ok(name_bytes) => {
+                    match deserialize_domain_from_bytes(packet_bytes, &name_bytes) {
+                        Ok((s, _)) => name.push_str(&s),
+                        Err(_) => return Err(()),
+                    };
+                }
+                Err(_) => return Err(())
+            };
+            curr_byte += 2;
+            // bounds check
+            if curr_byte >= bytes.len() || curr_byte >= packet_bytes.len() {
+                break;
+            }
+            continue;
+        }
         curr_byte += 1; // consume the size byte
         for i in curr_byte..(curr_byte as u8 + len) as usize {
             name.push(bytes[i] as char);
         }
         curr_byte += len as usize;
         if bytes[curr_byte] == 0 {
+            curr_byte += 1; // consume zero octet
             break;
         }
         name.push('.');
     }
-    curr_byte += 1; // consume zero octet
-    (name, curr_byte)
+    Ok((name, curr_byte))
 }
 
 pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> Result<Vec<u8>, ()> {
     let mut res = Vec::new();
     let mut it = name_bytes.iter().enumerate();
     while let Some((idx, byte)) = it.next() {
-    //for (idx, byte) in name_bytes.iter().enumerate() {
-        println!("idx: {}, byte: {:x}, byte & 0xc0: {:x}", idx, byte, byte & 0xc0);
         if byte & 0xc0 == 0xc0 {
             let mut ptr = (byte & 0x3f) as u16;
-            println!("after &: {}", ptr);
             ptr <<= 8;
-            println!("after <<=: {}", ptr);
             if idx+1 >= name_bytes.len() {
                 return Err(()) // compression flag was last byte in sequence
             }
             ptr += name_bytes[idx+1] as u16;
-            println!("after +=: {}", ptr);
             it.next(); // skip the second byte in the compression flag
             while packet_bytes[ptr as usize] != 0 {
                 res.push(packet_bytes[ptr as usize]);
@@ -106,7 +133,7 @@ mod tests {
             0x03u8, 0x66, 0x6f, 0x6f, // foo
             0x03, 0x63, 0x6f, 0x6d, 0x00, // com
         ];
-        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes);
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&vec![], &bytes).unwrap();
         assert_eq!("foo.com", actual_bytes);
         assert_eq!(9, bytes_read);
     }
@@ -118,9 +145,26 @@ mod tests {
             0x03, 0x62, 0x61, 0x72, // bar
             0x03, 0x63, 0x6f, 0x6d, 0x00, // com
         ];
-        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes);
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&vec![], &bytes).unwrap();
         assert_eq!("foo.bar.com", actual_bytes);
         assert_eq!(13, bytes_read);
+    }
+
+    #[test]
+    fn test_deserialize_domain_from_bytes_with_pointer() {
+        let bytes = [
+            0x00u8, 0x00, 0xde, 0xad, 0xbe, 0xef,
+
+            0x03, 0x66, 0x6f, 0x6f, // foo
+            0x03, 0x62, 0x61, 0x72, // bar
+            0x03, 0x63, 0x6f, 0x6d, 0x00, // com
+
+            0x03u8, 0x62, 0x61, 0x7a, // baz
+            0xc0, 0x06,
+        ];
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[19..]).unwrap();
+        assert_eq!(6, bytes_read);
+        assert_eq!("baz.foo.bar.com", actual_bytes);
     }
 
     #[test]

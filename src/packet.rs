@@ -42,6 +42,7 @@ impl DnsPacket {
 
 impl FromBytes for DnsPacket {
     fn from_bytes(mut bytes: &[u8]) -> Result<(Self, usize), Self> {
+        let original_bytes = bytes.clone();
         let (header, mut total_num_read) = DnsHeader::from_bytes(&bytes[..12]).unwrap();
         // TODO check if the header says this is a request or response
         // If from response, then why are we even calling this function?
@@ -51,7 +52,7 @@ impl FromBytes for DnsPacket {
         let mut additional = Vec::with_capacity(header.additional_count as usize);
         bytes.resize_from(total_num_read);
         for _ in 0..header.questions_count {
-            let (query, num_read) = match DnsQuery::from_bytes(&bytes) {
+            let (query, num_read) = match DnsQuery::from_bytes(&original_bytes, &bytes) {
                 Ok(tup) => tup,
                 Err(_) => continue,
             };
@@ -60,7 +61,7 @@ impl FromBytes for DnsPacket {
             bytes.resize_from(num_read);
         }
         for _ in 0..header.answers_count {
-            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+            let (answer, num_read) = match DnsAnswer::from_bytes(&original_bytes, &bytes) {
                 Ok(tup) => tup,
                 Err(_) => continue,
             };
@@ -69,7 +70,7 @@ impl FromBytes for DnsPacket {
             bytes.resize_from(num_read);
         }
         for _ in 0..header.authority_count {
-            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+            let (answer, num_read) = match DnsAnswer::from_bytes(&original_bytes, &bytes) {
                 Ok(tup) => tup,
                 Err(_) => continue,
             };
@@ -78,7 +79,7 @@ impl FromBytes for DnsPacket {
             bytes.resize_from(num_read);
         }
         for _ in 0..header.additional_count {
-            let (answer, num_read) = match DnsAnswer::from_bytes(&bytes) {
+            let (answer, num_read) = match DnsAnswer::from_bytes(&original_bytes, &bytes) {
                 Ok(tup) => tup,
                 Err(_) => continue,
             };

@@ -25,11 +25,12 @@ impl DnsAnswer {
             rdata: vec![],
         }
     }
-}
 
-impl FromBytes for DnsAnswer {
-    fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), Self> {
-        let (name, mut bytes_read) = deserialize_domain_from_bytes(&bytes);
+    pub fn from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Result<(Self, usize), Self> {
+        let (name, mut bytes_read) = match deserialize_domain_from_bytes(&packet_bytes, &bytes) {
+            Ok(tup) => tup,
+            Err(_) => return Err(DnsAnswer::new()),
+        };
         // TODO check qtype (rr type) here. For now we only want 1 (A)
         let qtype = match NetworkEndian::read_u16(&bytes[bytes_read..]) {
             1 => ResourceType::A,
@@ -117,7 +118,7 @@ mod tests {
         expected_answer.ttl = 0x456789ab;
         expected_answer.data_length = 4;
         expected_answer.rdata = vec![0xde, 0xca, 0xfb, 0xad];
-        let (actual_answer, _) = DnsAnswer::from_bytes(&bytes).unwrap();
+        let (actual_answer, _) = DnsAnswer::from_bytes(&vec![], &bytes).unwrap();
         assert_eq!(expected_answer, actual_answer);
     }
 
@@ -127,7 +128,7 @@ mod tests {
             0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x62, 0x61, 0x72, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00,
             0x1c, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
         ];
-        let (answer, num_read) = DnsAnswer::from_bytes(&expected_bytes).unwrap();
+        let (answer, num_read) = DnsAnswer::from_bytes(&vec![], &expected_bytes).unwrap();
         assert_eq!(expected_bytes.len(), num_read);
         assert_eq!(expected_bytes.to_vec(), answer.to_bytes());
     }
