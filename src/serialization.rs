@@ -1,6 +1,6 @@
-use std::str;
 use crate::header::ResponseCode;
 use crate::packet::DnsPacket;
+use std::str;
 
 pub trait FromBytes: Sized {
     // for some reason, when the return type is Self, we
@@ -28,7 +28,10 @@ pub fn serialize_domain_to_bytes(domain: &str) -> Vec<u8> {
     res
 }
 
-pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Result<(String, usize), ()> {
+pub fn deserialize_domain_from_bytes(
+    packet_bytes: &[u8],
+    bytes: &[u8],
+) -> Result<(String, usize), ()> {
     let name_len = bytes[0];
     // the domain might just be the pointer
     if name_len & 0xc0 == 0xc0 {
@@ -39,8 +42,8 @@ pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Resul
                     Err(_) => return Err(()),
                 };
             }
-            Err(_) => Err(())
-        }
+            Err(_) => Err(()),
+        };
     }
     // otherwise the domain starts with some characters
     let mut name = String::with_capacity(name_len as usize);
@@ -55,7 +58,7 @@ pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Resul
                         Err(_) => return Err(()),
                     };
                 }
-                Err(_) => return Err(())
+                Err(_) => return Err(()),
             };
             curr_byte += 2;
             // bounds check
@@ -85,10 +88,10 @@ pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> Result<Vec<u8>
         if byte & 0xc0 == 0xc0 {
             let mut ptr = (byte & 0x3f) as u16;
             ptr <<= 8;
-            if idx+1 >= name_bytes.len() {
-                return Err(()) // compression flag was last byte in sequence
+            if idx + 1 >= name_bytes.len() {
+                return Err(()); // compression flag was last byte in sequence
             }
-            ptr += name_bytes[idx+1] as u16;
+            ptr += name_bytes[idx + 1] as u16;
             it.next(); // skip the second byte in the compression flag
             while packet_bytes[ptr as usize] != 0 {
                 res.push(packet_bytes[ptr as usize]);
@@ -152,20 +155,19 @@ mod tests {
     #[test]
     fn test_deserialize_domain_from_bytes_with_pointer() {
         let bytes = [
-            0x00u8, 0x00, 0xde, 0xad, 0xbe, 0xef,
-
-            0x03, 0x66, 0x6f, 0x6f, // foo
+            0x00u8, 0x00, 0xde, 0xad, 0xbe, 0xef, 0x03, 0x66, 0x6f, 0x6f, // foo
             0x03, 0x62, 0x61, 0x72, // bar
             0x03, 0x63, 0x6f, 0x6d, 0x00, // com
-
             0x03u8, 0x62, 0x61, 0x7a, // baz
             0xc0, 0x06,
         ];
-        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[19..]).unwrap();
+        let (actual_bytes, bytes_read) =
+            deserialize_domain_from_bytes(&bytes, &bytes[19..]).unwrap();
         assert_eq!(6, bytes_read);
         assert_eq!("baz.foo.bar.com", actual_bytes);
 
-        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[23..]).unwrap();
+        let (actual_bytes, bytes_read) =
+            deserialize_domain_from_bytes(&bytes, &bytes[23..]).unwrap();
         assert_eq!(2, bytes_read);
         assert_eq!("foo.bar.com", actual_bytes);
     }
@@ -185,9 +187,7 @@ mod tests {
             // extra pointers for fluff
             0x00, 0x1c, 0x01, 0x23, 0x45,
         ];
-        let third_bytes = [
-            0xc0u8, 0x0c, 0x04, 0xde, 0xca, 0xfb, 0xad,
-        ];
+        let third_bytes = [0xc0u8, 0x0c, 0x04, 0xde, 0xca, 0xfb, 0xad];
         let mut bytes = first_bytes.to_vec();
         bytes.append(&mut second_bytes.to_vec());
         bytes.append(&mut third_bytes.to_vec());
