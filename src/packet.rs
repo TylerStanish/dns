@@ -69,11 +69,13 @@ impl FromBytes for DnsPacket {
             total_num_read += num_read;
             bytes.resize_from(num_read);
         }
+        println!("{} authorities", header.authority_count);
         for _ in 0..header.authority_count {
             let (answer, num_read) = match DnsAnswer::from_bytes(&original_bytes, &bytes) {
                 Ok(tup) => tup,
                 Err(_) => continue,
             };
+            println!("Authority: {:?}", &answer);
             authority.push(answer);
             total_num_read += num_read;
             bytes.resize_from(num_read);

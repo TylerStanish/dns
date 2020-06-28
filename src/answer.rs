@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use crate::header::{ResourceType, ResponseCode};
 use crate::serialization::{
     deserialize_domain_from_bytes, serialize_domain_to_bytes, FromBytes, ToBytes,
@@ -32,11 +33,12 @@ impl DnsAnswer {
             Err(_) => return Err(DnsAnswer::new()),
         };
         // TODO check qtype (rr type) here. For now we only want 1 (A)
-        let qtype = match NetworkEndian::read_u16(&bytes[bytes_read..]) {
-            1 => ResourceType::A,
-            28 => ResourceType::AAAA,
+        //println!("got here {:?}", &bytes[bytes_read..]);
+        let qtype: ResourceType = match NetworkEndian::read_u16(&bytes[bytes_read..]).try_into() {
+            Ok(rrtype) => rrtype,
             _ => return Err(DnsAnswer::new()),
         };
+        //println!("did not get here");
         bytes_read += 2;
         let class = NetworkEndian::read_u16(&bytes[bytes_read..]);
         bytes_read += 2;
