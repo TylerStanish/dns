@@ -2,6 +2,8 @@ Features
   - Full packet (de)serialization
   - Record types
     - A
+    - CNAME
+    - SOA
   - Caching
 
 TODOs
