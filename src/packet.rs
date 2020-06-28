@@ -320,4 +320,38 @@ mod tests {
         assert_eq!(packet.to_bytes().to_vec(), bytes.to_vec());
     }
     // TODO test multiple answers of additional and authority rrs
+
+    #[test]
+    fn test_packet_from_bytes_with_pointers() {
+        let bytes = [
+            0x00u8, 0x00, // transaction id
+            0x80, 0x00, // flags (standard query response)
+            0x00, 0x00, // 0 questions
+            0x00, 0x02, // 2 answers
+            0x00, 0x00, 0x00, 0x00, // answers
+            //foo.com
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
+            // bar.foo.com with pointer
+            0x03, 0x62, 0x61, 0x72, 0xc0, 0x0c, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x67, 0x89, 0xab, 0x00, 0x04, 0xde, 0xca, 0xfb, 0xad,
+        ];
+        let (packet, num_read) = DnsPacket::from_bytes(&bytes).unwrap();
+        assert_eq!(bytes.len(), num_read);
+        let mut foo_answer = DnsAnswer::new();
+        foo_answer.name = "foo.com".to_owned();
+        foo_answer.qtype = ResourceType::AAAA;
+        foo_answer.class = 0x0123;
+        foo_answer.ttl = 0x456789ab;
+        foo_answer.data_length = 4;
+        foo_answer.rdata = vec![0xde, 0xca, 0xfb, 0xad];
+        let mut bar_answer = DnsAnswer::new();
+        bar_answer.name = "bar.foo.com".to_owned();
+        bar_answer.qtype = ResourceType::AAAA;
+        bar_answer.class = 0x0123;
+        bar_answer.ttl = 0x456789ab;
+        bar_answer.data_length = 4;
+        bar_answer.rdata = vec![0xde, 0xca, 0xfb, 0xad];
+        assert_eq!(vec![foo_answer, bar_answer], packet.answers);
+    }
 }

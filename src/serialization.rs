@@ -59,10 +59,10 @@ pub fn deserialize_domain_from_bytes(packet_bytes: &[u8], bytes: &[u8]) -> Resul
             };
             curr_byte += 2;
             // bounds check
-            if curr_byte >= bytes.len() || curr_byte >= packet_bytes.len() {
-                break;
-            }
-            continue;
+            // FIXME once we hit this point, we can assume we're done right?
+            // That is, once we reach a pointer, that pointer will go until the
+            // end?
+            break;
         }
         curr_byte += 1; // consume the size byte
         for i in curr_byte..(curr_byte as u8 + len) as usize {
@@ -181,7 +181,9 @@ mod tests {
         ];
         let second_bytes = [
             //foo.com
-            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00, 0x00, 0x1c, 0x01, 0x23, 0x45,
+            0x03u8, 0x66, 0x6f, 0x6f, 0x03, 0x63, 0x6f, 0x6d, 0x00,
+            // extra pointers for fluff
+            0x00, 0x1c, 0x01, 0x23, 0x45,
         ];
         let third_bytes = [
             0xc0u8, 0x0c, 0x04, 0xde, 0xca, 0xfb, 0xad,
