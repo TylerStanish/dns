@@ -141,14 +141,4 @@ mod tests {
         .to_vec();
         assert_eq!(expected_bytes, actual_bytes);
     }
-
-    #[test]
-    fn test_cname_query_from_bytes() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn test_cname_query_to_bytes() {
-        unimplemented!();
-    }
 }

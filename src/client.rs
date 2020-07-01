@@ -117,4 +117,23 @@ mod tests {
         let res = client.results(req);
         assert_eq!(res.header.response_code, ResponseCode::NameError);
     }
+
+    #[test]
+    fn test_inverse_query() {
+        unimplemented!()
+    }
+
+    #[test]
+    fn test_authoritative_query() {
+        let mut query = DnsQuery::new();
+        query.name = "foo.bar".to_owned();
+        let mut req = DnsPacket::new();
+        req.queries = vec![query];
+        req.header.questions_count = 1;
+    }
+
+    #[test]
+    fn test_cache_invalidation_on_authority_change() {
+        unimplemented!()
+    }
 }
