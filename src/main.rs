@@ -9,6 +9,7 @@ mod client;
 mod header;
 mod packet;
 mod query;
+mod record;
 mod resolvers;
 mod serialization;
 
@@ -38,6 +39,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    #[test]
     fn test_invalid_yaml_fails_early() {
         unimplemented!()
     }
