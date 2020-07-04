@@ -38,6 +38,21 @@ impl TryInto<ResourceType> for u16 {
     }
 }
 
+impl TryInto<ResourceType> for &str {
+    type Error = ResponseCode;
+    fn try_into(self) -> Result<ResourceType, Self::Error> {
+        match self {
+            "" => Ok(ResourceType::Unused),
+            "A" => Ok(ResourceType::A),
+            "CNAME" => Ok(ResourceType::CName),
+            "SOA" => Ok(ResourceType::StartOfAuthority),
+            "AAAA" => Ok(ResourceType::AAAA),
+            _ => Err(ResponseCode::NotImplemented),
+        }
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ResponseCode {
     NoError,

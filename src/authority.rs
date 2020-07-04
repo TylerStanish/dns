@@ -2,6 +2,8 @@ use std::fs::{create_dir, read_dir, read_to_string};
 use std::io::ErrorKind;
 use yaml_rust::{Yaml, YamlLoader};
 
+use crate::record::{Record, SoaInformation};
+
 pub struct Authority {
     default_ttl: usize,
     soa_record: Record,
@@ -10,8 +12,11 @@ pub struct Authority {
 
 impl Authority {
     pub fn new_from_yaml(yaml: &[Yaml]) -> Self {
+        let soa = SoaInformation::from_yaml(&yaml[0]["soa-record"]);
         Authority {
             default_ttl: yaml[0]["ttl"].as_i64().expect("Invalid yaml file") as usize,
+            soa_record: soa,
+            records: ,
         }
     }
 }
