@@ -52,7 +52,6 @@ impl TryInto<ResourceType> for &str {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum ResponseCode {
     NoError,

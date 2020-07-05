@@ -29,20 +29,22 @@ pub fn authorities() -> Vec<Authority> {
             ErrorKind::NotFound => {
                 create_dir("authorities").expect("Could not create the authorities directory");
                 return authorities();
-            },
+            }
             _ => panic!("An unexpected io error happened"),
-        }
+        },
     };
     let mut auths = Vec::new();
     for auth in files {
         let os_file_name = auth.unwrap().file_name();
-        let file_name = os_file_name.to_str().expect("We do not support your operating system");
-        let yaml = YamlLoader::load_from_str(&read_to_string(file_name).unwrap()).expect(&format!("Invalid yaml in {}", file_name));
+        let file_name = os_file_name
+            .to_str()
+            .expect("We do not support your operating system");
+        let yaml = YamlLoader::load_from_str(&read_to_string(file_name).unwrap())
+            .expect(&format!("Invalid yaml in {}", file_name));
         auths.push(Authority::new_from_yaml(&yaml));
     }
     auths
 }
-
 
 #[cfg(test)]
 mod tests {

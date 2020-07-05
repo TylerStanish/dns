@@ -4,7 +4,6 @@ use yaml_rust::Yaml;
 
 use crate::header::ResourceType;
 
-
 pub enum RecordInformation {
     A(String),
     AAAA(String),
@@ -38,7 +37,11 @@ impl Record {
         Record {
             name: extract_string(yaml, "name").unwrap(),
             ttl: extract_integer(yaml, "ttl").unwrap() as usize,
-            rec_type: extract_string(yaml, "type").unwrap().as_str().try_into().expect("Unsupported resource type"),
+            rec_type: extract_string(yaml, "type")
+                .unwrap()
+                .as_str()
+                .try_into()
+                .expect("Unsupported resource type"),
             rec_class: extract_string(yaml, "class").unwrap(),
             data: RecordInformation::Soa(SoaInformation::from_yaml(&yaml["data"])),
         }
