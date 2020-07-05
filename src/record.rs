@@ -18,7 +18,9 @@ impl RecordInformation {
             ResourceType::A => RecordInformation::A(extract_string(yaml, "").unwrap()),
             ResourceType::AAAA => RecordInformation::AAAA(extract_string(yaml, "").unwrap()),
             ResourceType::CName => RecordInformation::CName(extract_string(yaml, "").unwrap()),
-            ResourceType::StartOfAuthority => RecordInformation::Soa(SoaInformation::from_yaml(&yaml)),
+            ResourceType::StartOfAuthority => {
+                RecordInformation::Soa(SoaInformation::from_yaml(&yaml))
+            }
             _ => panic!("Unsupported resource type in record"),
         }
     }
@@ -110,11 +112,7 @@ fn extract_integer(yaml: &Yaml, key: &str) -> Result<i64, ()> {
 }
 
 fn extract_string(yaml: &Yaml, key: &str) -> Result<String, ()> {
-    let to_match = if key.is_empty() {
-        &yaml
-    } else {
-        &yaml[key]
-    };
+    let to_match = if key.is_empty() { &yaml } else { &yaml[key] };
     match to_match {
         Yaml::String(s) => Ok(s.clone()),
         _ => Err(()),
