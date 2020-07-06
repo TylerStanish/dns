@@ -28,14 +28,14 @@ impl RecordInformation {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Record {
-    name: String,
-    ttl: usize,
-    rec_type: ResourceType,
-    rec_class: String, // should always be 'IN'
+    pub name: String,
+    pub ttl: usize,
+    pub rec_type: ResourceType,
+    pub rec_class: String, // should always be 'IN'
     // this needs to be strongly typed (and not just Vec<u8> because we need to serialize it
     // somehow and we don't want users of this to have to enter the raw bytes into the yaml config
     // file
-    data: RecordInformation,
+    pub data: RecordInformation,
 }
 
 impl Record {
