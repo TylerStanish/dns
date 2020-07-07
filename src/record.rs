@@ -90,6 +90,7 @@ impl SoaInformation {
             minimum: 0,
         }
     }
+
     pub fn from_yaml(yaml: &Yaml) -> Self {
         SoaInformation {
             domain_name: extract_string(yaml, "domain").unwrap(),
@@ -104,14 +105,14 @@ impl SoaInformation {
     }
 }
 
-fn extract_integer(yaml: &Yaml, key: &str) -> Result<i64, ()> {
+pub fn extract_integer(yaml: &Yaml, key: &str) -> Result<i64, ()> {
     match yaml[key] {
         Yaml::Integer(n) => Ok(n),
         _ => Err(()),
     }
 }
 
-fn extract_string(yaml: &Yaml, key: &str) -> Result<String, ()> {
+pub fn extract_string(yaml: &Yaml, key: &str) -> Result<String, ()> {
     let to_match = if key.is_empty() { &yaml } else { &yaml[key] };
     match to_match {
         Yaml::String(s) => Ok(s.clone()),

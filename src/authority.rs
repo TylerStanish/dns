@@ -2,12 +2,12 @@ use std::fs::{create_dir, read_dir, read_to_string};
 use std::io::ErrorKind;
 use yaml_rust::{Yaml, YamlLoader};
 
-use crate::record::{Record, SoaInformation};
+use crate::record::{extract_string, Record, SoaInformation};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Authority {
     default_ttl: usize,
-    soa_record: Record,
+    origin: String,
     records: Vec<Record>,
 }
 
@@ -15,16 +15,14 @@ impl Authority {
     pub fn new() -> Self {
         Authority {
             default_ttl: 0,
-            soa_record: Record::new(),
+            origin: String::new(),
             records: Vec::new(),
         }
     }
 
     pub fn new_from_yaml(yaml: &Yaml) -> Self {
-        let soa_info = SoaInformation::from_yaml(&yaml[0]["soa-record"]);
-        let mut soa_record = Record::from_yaml(yaml);
         let mut records = Vec::new();
-        match &yaml[0]["records"] {
+        match &yaml["records"] {
             Yaml::Array(arr) => {
                 for record_yaml in arr {
                     records.push(Record::from_yaml(&record_yaml));
@@ -33,8 +31,8 @@ impl Authority {
             _ => panic!("The 'records' field must be an array"),
         }
         Authority {
-            default_ttl: yaml[0]["ttl"].as_i64().expect("Invalid yaml file") as usize,
-            soa_record,
+            default_ttl: yaml["ttl"].as_i64().expect("Invalid yaml file") as usize,
+            origin: yaml["origin"].as_str().unwrap().to_owned(),
             records,
         }
     }
@@ -73,50 +71,43 @@ mod tests {
     use crate::record::RecordInformation;
 
     #[test]
-    fn test_authority_new_from_yaml_no_records() {
-        let input = "
-            ttl: 60
-            soa-record:
-                domain: foo
-                fqdn: soa.foo.com.
-                email: foo@foo.com
-                serial: 42
-                refresh: 43
-                retry: 44
-                expire: 45
-                minimum: 46
-            records: []
-        ";
+    fn test_authority_new_from_yaml() {
+        let input =
+"
+ttl: 60
+origin: foo.com
+records:
+  - type: SOA
+    class: IN
+    ttl: 60
+    name: bar
+    data:
+      domain: foo
+      fqdn: soa.foo.com.
+      email: foo@foo.com
+      serial: 42
+      refresh: 43
+      retry: 44
+      expire: 45
+      minimum: 46
+";
         let yaml = YamlLoader::load_from_str(input).unwrap();
         let actual_authority = Authority::new_from_yaml(&yaml[0]);
         let mut expected_authority = Authority::new();
-        let expected_soa_information = SoaInformation::from_yaml(&yaml[0]["soa-record"]);
+        // we already test for this in another test so we can reuse it here
+        let expected_soa_information = SoaInformation::from_yaml(&yaml[0]["records"][0]["data"]);
         expected_authority.default_ttl = 60;
-        expected_authority.soa_record.name = "foo".to_owned();
-        expected_authority.soa_record.ttl = 60;
-        expected_authority.soa_record.rec_type = ResourceType::StartOfAuthority;
-        expected_authority.soa_record.data = RecordInformation::Soa(expected_soa_information);
+        expected_authority.origin = "foo.com".to_owned();
+        expected_authority.records.push(Record::new());
+        expected_authority.records[0].name = "bar".to_owned();
+        expected_authority.records[0].ttl = 60;
+        expected_authority.records[0].rec_type = ResourceType::StartOfAuthority;
+        expected_authority.records[0].data = RecordInformation::Soa(expected_soa_information);
         assert_eq!(expected_authority, actual_authority);
     }
 
     #[test]
-    fn test_authority_new_from_yaml() {
-        let input = "
-            ttl: 60
-            soa-record:
-                domain: foo
-                fqdn: soa.foo.com.
-                email: foo@foo.com
-                serial: 42
-                refresh: 43
-                retry: 44
-                expire: 45
-                minimum: 46
-            records: []
-        ";
-        let yaml = YamlLoader::load_from_str(input).unwrap();
-        let authority = Authority::new_from_yaml(&yaml[0]);
-        assert_eq!(60, authority.default_ttl);
+    fn test_requires_one_soa_record() {
         unimplemented!();
     }
 
@@ -129,6 +120,17 @@ mod tests {
         let yaml = YamlLoader::load_from_str(input).unwrap();
         let authority = Authority::new_from_yaml(&yaml[0]);
         assert_eq!(60, authority.default_ttl);
+        unimplemented!();
+    }
+
+    #[test]
+    /// See https://docs.cloud.oracle.com/en-us/iaas/Content/DNS/Reference/formattingzonefile.htm#example
+    fn test_expands_domain_not_ending_in_dot() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn test_prepends_domain_with_origin() {
         unimplemented!();
     }
 
