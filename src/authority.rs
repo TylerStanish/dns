@@ -168,25 +168,7 @@ records: []
     }
 
     #[test]
-    /// See https://docs.cloud.oracle.com/en-us/iaas/Content/DNS/Reference/formattingzonefile.htm#example
-    fn test_expands_domain_not_ending_in_dot() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn test_prepends_domain_with_origin() {
-        unimplemented!();
-    }
-
-    #[test]
     fn test_authorities_with_real_files() {
-        let input = "
-            ttl: 60
-            soa-record:
-        ";
-        let yaml = YamlLoader::load_from_str(input).unwrap();
-        let authority = Authority::new_from_yaml(&yaml[0]);
-        assert_eq!(60, authority.default_ttl);
         unimplemented!();
     }
 
