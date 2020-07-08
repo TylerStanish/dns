@@ -2,6 +2,7 @@ use std::fs::{create_dir, read_dir, read_to_string};
 use std::io::ErrorKind;
 use yaml_rust::{Yaml, YamlLoader};
 
+use crate::header::ResourceType;
 use crate::record::{extract_string, Record, SoaInformation};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,11 +31,19 @@ impl Authority {
             }
             _ => panic!("The 'records' field must be an array"),
         }
-        Authority {
+        let authority = Authority {
             default_ttl: yaml["ttl"].as_i64().expect("Invalid yaml file") as usize,
             origin: yaml["origin"].as_str().unwrap().to_owned(),
             records,
-        }
+        };
+        authority.check_has_one_authority_record();
+        authority
+    }
+
+    /// Panics if `self.records` does not have one and only one SOA record
+    fn check_has_one_authority_record(&self) {
+        let soa_count = self.records.iter().filter(|rec| rec.rec_type == ResourceType::StartOfAuthority).count();
+        assert_eq!(1, soa_count);
     }
 }
 
@@ -107,20 +116,55 @@ records:
     }
 
     #[test]
-    fn test_requires_one_soa_record() {
-        unimplemented!();
+    #[should_panic]
+    fn test_fails_with_two_soa_records() {
+        let input =
+"
+ttl: 60
+origin: foo.com
+records:
+  - type: SOA
+    class: IN
+    ttl: 60
+    name: bar
+    data:
+      domain: foo
+      fqdn: soa.foo.com.
+      email: foo@foo.com
+      serial: 42
+      refresh: 43
+      retry: 44
+      expire: 45
+      minimum: 46
+  - type: SOA
+    class: IN
+    ttl: 60
+    name: bar
+    data:
+      domain: foo
+      fqdn: soa.foo.com.
+      email: foo@foo.com
+      serial: 42
+      refresh: 43
+      retry: 44
+      expire: 45
+      minimum: 46
+";
+        let yaml = YamlLoader::load_from_str(input).unwrap();
+        Authority::new_from_yaml(&yaml[0]);
     }
 
     #[test]
-    fn test_authorities_with_many() {
-        let input = "
-            ttl: 60
-            soa-record:
-        ";
+    #[should_panic]
+    fn test_fails_with_zero_soa_records() {
+        let input =
+"
+ttl: 60
+origin: foo.com
+records: []
+";
         let yaml = YamlLoader::load_from_str(input).unwrap();
-        let authority = Authority::new_from_yaml(&yaml[0]);
-        assert_eq!(60, authority.default_ttl);
-        unimplemented!();
+        Authority::new_from_yaml(&yaml[0]);
     }
 
     #[test]
