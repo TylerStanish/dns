@@ -10,9 +10,9 @@ use crate::record::{extract_string, Record, SoaInformation};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Authority {
-    default_ttl: usize,
-    origin: String,
-    records: Vec<Record>,
+    pub default_ttl: usize,
+    pub origin: String,
+    pub records: Vec<Record>,
 }
 
 impl Authority {
