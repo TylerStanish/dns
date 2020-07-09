@@ -1,5 +1,7 @@
+use std::env;
 use std::fs::{create_dir, read_dir, read_to_string};
 use std::io::ErrorKind;
+use std::path::Path;
 
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -49,11 +51,12 @@ impl Authority {
 }
 
 pub fn authorities() -> Vec<Authority> {
-    let files = match read_dir("authorities") {
+    let authority_dir = env::var("AUTHORITY_DIR").unwrap_or("authorities".to_owned());
+    let files = match read_dir(&authority_dir) {
         Ok(files) => files,
         Err(e) => match e.kind() {
             ErrorKind::NotFound => {
-                create_dir("authorities").expect("Could not create the authorities directory");
+                create_dir(&authority_dir).expect("Could not create the authorities directory");
                 return authorities();
             }
             _ => panic!("An unexpected io error happened"),
@@ -65,7 +68,8 @@ pub fn authorities() -> Vec<Authority> {
         let file_name = os_file_name
             .to_str()
             .expect("We do not support your operating system");
-        let yaml_arr = YamlLoader::load_from_str(&read_to_string(file_name).unwrap())
+        let file_location = Path::new(&authority_dir).join(file_name);
+        let yaml_arr = YamlLoader::load_from_str(&read_to_string(&file_location).unwrap())
             .expect(&format!("Invalid yaml in {}", file_name));
         for yaml in yaml_arr {
             auths.push(Authority::new_from_yaml(&yaml));
@@ -78,7 +82,9 @@ pub fn authorities() -> Vec<Authority> {
 mod tests {
     use super::*;
     use std::io::Write;
-    use std::fs::{File, remove_dir};
+    use std::fs::{create_dir, File, read_dir, remove_dir, remove_dir_all};
+    use std::path::Path;
+    use std::env;
     use tempdir::TempDir;
     use crate::header::ResourceType;
     use crate::record::RecordInformation;
@@ -173,8 +179,9 @@ records: []
 
     #[test]
     fn test_authorities_with_real_files() {
-        let authorities_dir = TempDir::new("authorities").unwrap();
-        let authority_file_path = authorities_dir.path().join("authority1.yml");
+        let temp_authorities_dir = TempDir::new("authorities").unwrap();
+        let authority_file_path = temp_authorities_dir.path().join("authority1.yml");
+        env::set_var("AUTHORITY_DIR", temp_authorities_dir.path());
         let mut authority_file = File::create(authority_file_path).unwrap();
         let input = b"
 ttl: 60
@@ -212,11 +219,12 @@ records:
 
     #[test]
     fn test_create_authorities_directory_if_absent() {
-        read_dir("authorities").expect_err("The authorities directory already exists");
+        let authority_dir = env::var("AUTHORITY_DIR").unwrap_or("authorities".to_owned());
+        read_dir(&authority_dir).expect_err("The authorities directory already exists");
         authorities();
-        read_dir("authorities").unwrap();
+        read_dir(&authority_dir).unwrap();
         // we want to use `remove_dir` instead of `remove_dir_all` because we expect the
         // `authorities` directory to be empty
-        remove_dir("authorities").unwrap();
+        remove_dir(&authority_dir).unwrap();
     }
 }
