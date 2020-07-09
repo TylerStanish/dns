@@ -39,8 +39,37 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::env;
+    use std::fs::File;
+    use std::io::Write;
+    use tempdir::TempDir;
+
     #[test]
+    #[should_panic]
     fn test_invalid_yaml_fails_early() {
-        unimplemented!()
+        let temp_authorities_dir = TempDir::new("authorities").unwrap();
+        let authority_file_path = temp_authorities_dir.path().join("authority1.yml");
+        env::set_var("AUTHORITY_DIR", temp_authorities_dir.path());
+        let mut authority_file = File::create(authority_file_path).unwrap();
+        let input = b"
+origin: foo.com
+records:
+  - type: SOA
+    class: IN
+    ttl: 60
+    name: bar
+    data:
+      domain: foo
+      fqdn: soa.foo.com.
+      email: foo@foo.com
+      serial: 42
+      refresh: 43
+      retry: 44
+      expire: 45
+      minimum: 46
+";
+        authority_file.write_all(input).unwrap();
+        main();
     }
 }
