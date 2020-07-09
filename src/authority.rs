@@ -1,5 +1,6 @@
 use std::fs::{create_dir, read_dir, read_to_string};
 use std::io::ErrorKind;
+
 use yaml_rust::{Yaml, YamlLoader};
 
 use crate::header::ResourceType;
@@ -76,6 +77,9 @@ pub fn authorities() -> Vec<Authority> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use std::fs::{File, remove_dir};
+    use tempdir::TempDir;
     use crate::header::ResourceType;
     use crate::record::RecordInformation;
 
@@ -169,16 +173,50 @@ records: []
 
     #[test]
     fn test_authorities_with_real_files() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn test_read_authority_file() {
-        unimplemented!()
+        let authorities_dir = TempDir::new("authorities").unwrap();
+        let authority_file_path = authorities_dir.path().join("authority1.yml");
+        let mut authority_file = File::create(authority_file_path).unwrap();
+        let input = b"
+ttl: 60
+origin: foo.com
+records:
+  - type: SOA
+    class: IN
+    ttl: 60
+    name: bar
+    data:
+      domain: foo
+      fqdn: soa.foo.com.
+      email: foo@foo.com
+      serial: 42
+      refresh: 43
+      retry: 44
+      expire: 45
+      minimum: 46
+";
+        authority_file.write_all(input).unwrap();
+        let auths = authorities();
+        let yaml = YamlLoader::load_from_str(std::str::from_utf8(input).unwrap()).unwrap();
+        let mut expected_authority = Authority::new();
+        // we already test for this in another test so we can reuse it here
+        let expected_soa_information = SoaInformation::from_yaml(&yaml[0]["records"][0]["data"]);
+        expected_authority.default_ttl = 60;
+        expected_authority.origin = "foo.com".to_owned();
+        expected_authority.records.push(Record::new());
+        expected_authority.records[0].name = "bar".to_owned();
+        expected_authority.records[0].ttl = 60;
+        expected_authority.records[0].rec_type = ResourceType::StartOfAuthority;
+        expected_authority.records[0].data = RecordInformation::Soa(expected_soa_information);
+        assert_eq!(auths, vec![expected_authority]);
     }
 
     #[test]
     fn test_create_authorities_directory_if_absent() {
-        unimplemented!()
+        read_dir("authorities").expect_err("The authorities directory already exists");
+        authorities();
+        read_dir("authorities").unwrap();
+        // we want to use `remove_dir` instead of `remove_dir_all` because we expect the
+        // `authorities` directory to be empty
+        remove_dir("authorities").unwrap();
     }
 }

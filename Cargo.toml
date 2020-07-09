@@ -14,4 +14,4 @@ yaml-rust = "0.4"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
-tempfile = "3.1.0"
+tempdir = "0.3.7"
