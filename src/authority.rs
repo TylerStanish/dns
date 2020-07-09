@@ -45,7 +45,11 @@ impl Authority {
 
     /// Panics if `self.records` does not have one and only one SOA record
     fn check_has_one_authority_record(&self) {
-        let soa_count = self.records.iter().filter(|rec| rec.rec_type == ResourceType::StartOfAuthority).count();
+        let soa_count = self
+            .records
+            .iter()
+            .filter(|rec| rec.rec_type == ResourceType::StartOfAuthority)
+            .count();
         assert_eq!(1, soa_count);
     }
 }
@@ -81,18 +85,17 @@ pub fn authorities() -> Vec<Authority> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use std::fs::{create_dir, File, read_dir, remove_dir, remove_dir_all};
-    use std::path::Path;
-    use std::env;
-    use tempdir::TempDir;
     use crate::header::ResourceType;
     use crate::record::RecordInformation;
+    use std::env;
+    use std::fs::{create_dir, read_dir, remove_dir, remove_dir_all, File};
+    use std::io::Write;
+    use std::path::Path;
+    use tempdir::TempDir;
 
     #[test]
     fn test_authority_new_from_yaml() {
-        let input =
-"
+        let input = "
 ttl: 60
 origin: foo.com
 records:
@@ -128,8 +131,7 @@ records:
     #[test]
     #[should_panic]
     fn test_fails_with_two_soa_records() {
-        let input =
-"
+        let input = "
 ttl: 60
 origin: foo.com
 records:
@@ -167,8 +169,7 @@ records:
     #[test]
     #[should_panic]
     fn test_fails_with_zero_soa_records() {
-        let input =
-"
+        let input = "
 ttl: 60
 origin: foo.com
 records: []
