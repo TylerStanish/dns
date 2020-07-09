@@ -131,9 +131,4 @@ mod tests {
         req.queries = vec![query];
         req.header.questions_count = 1;
     }
-
-    #[test]
-    fn test_cache_invalidation_on_authority_change() {
-        unimplemented!()
-    }
 }
