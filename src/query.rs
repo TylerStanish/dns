@@ -17,7 +17,7 @@ impl DnsQuery {
         DnsQuery {
             name: String::new(),
             qtype: ResourceType::Unused,
-            class: 0,
+            class: 1,
         }
     }
 

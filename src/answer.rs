@@ -20,7 +20,7 @@ impl DnsAnswer {
         DnsAnswer {
             name: String::new(),
             qtype: ResourceType::Unused,
-            class: 0,
+            class: 1,
             ttl: 0,
             data_length: 0,
             rdata: vec![],
