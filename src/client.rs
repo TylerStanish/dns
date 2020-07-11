@@ -88,6 +88,7 @@ where
                         res.header.authoritative = true;
                         res.header.answers_count = 1;
                         res.header.questions_count = 1;
+                        res.header.tx_id = req.header.tx_id;
                         res.queries = req.queries;
                         res.answers = vec![ans];
                         return res;
@@ -200,6 +201,7 @@ records:
         let mut req = DnsPacket::new();
         req.queries = vec![query.clone()];
         req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
 
         let mut cache = TtlCache::new(1);
         let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache);
@@ -209,6 +211,7 @@ records:
         expected_packet.header.questions_count = 1;
         expected_packet.header.answers_count = 1;
         expected_packet.header.authoritative = true;
+        expected_packet.header.tx_id = 0xbeef;
         let mut expected_answer = DnsAnswer::new();
         expected_answer.name = "baz.foo.com".to_owned();
         expected_answer.qtype = ResourceType::A;
