@@ -1,10 +1,11 @@
 use crate::answer::DnsAnswer;
 use crate::authority::authorities;
 use crate::cache::Cache;
-use crate::header::ResponseCode;
+use crate::header::{ResourceType, ResponseCode};
 use crate::packet::DnsPacket;
 use crate::query::DnsQuery;
-use crate::serialization::{FromBytes, ToBytes};
+use crate::record::RecordInformation;
+use crate::serialization::{deserialize_ipv4_from_str, ToBytes};
 use std::mem;
 use std::net::UdpSocket;
 
@@ -61,10 +62,35 @@ where
             // check custom tlds
             for tld_match in auths.iter().filter(|a| a.origin.split(".").last().unwrap_or("") == *tld) {
                 for record in &tld_match.records {
-                    if query.qtype == record.rec_type && query.name == tld_match.origin.clone() + &record.name {
+                    let name = record.name.clone() + "." + &tld_match.origin;
+                    if query.qtype == record.rec_type && query.name == name {
                         // we are the authority for this record
                         let mut ans = DnsAnswer::new();
-                        ans.ttl = record
+                        ans.ttl = record.ttl;
+                        ans.name = name;
+                        ans.qtype = query.qtype.clone();
+                        match &record.data {
+                            RecordInformation::A(data)  => {
+                                ans.data_length = 4;
+                                ans.rdata = deserialize_ipv4_from_str(&data);
+                            }
+                            RecordInformation::AAAA(data) => {
+                                unimplemented!();
+                            }
+                            RecordInformation::CName(data) => {
+                                unimplemented!();
+                            }
+                            RecordInformation::Soa(data) => {
+                                unimplemented!();
+                            }
+                        }
+                        let mut res = DnsPacket::new_response();
+                        res.header.authoritative = true;
+                        res.header.answers_count = 1;
+                        res.header.questions_count = 1;
+                        res.queries = req.queries;
+                        res.answers = vec![ans];
+                        return res;
                     }
                 }
             }
@@ -88,6 +114,7 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
     use std::time::Duration;
+    use pretty_assertions::assert_eq;
     use tempdir::TempDir;
     use ttl_cache::TtlCache;
 
@@ -159,14 +186,44 @@ records:
       retry: 44
       expire: 45
       minimum: 46
+  - type: A
+    class: IN
+    ttl: 30
+    name: baz
+    data: 12.34.56.78
 ";
         authority_file.write_all(input).unwrap();
 
         let mut query = DnsQuery::new();
-        query.name = "bar.foo.com".to_owned();
+        query.name = "baz.foo.com".to_owned();
+        query.qtype = ResourceType::A;
         let mut req = DnsPacket::new();
-        req.queries = vec![query];
+        req.queries = vec![query.clone()];
         req.header.questions_count = 1;
+
+        let mut cache = TtlCache::new(1);
+        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache);
+        let actual_packet = client.standard_query(req);
+
+        let mut expected_packet = DnsPacket::new_response();
+        expected_packet.header.questions_count = 1;
+        expected_packet.header.answers_count = 1;
+        expected_packet.header.authoritative = true;
+        let mut expected_answer = DnsAnswer::new();
+        expected_answer.name = "baz.foo.com".to_owned();
+        expected_answer.qtype = ResourceType::A;
+        expected_answer.ttl = 30;
+        expected_answer.data_length = 4;
+        expected_answer.rdata = vec![0x0c, 0x22, 0x38, 0x4e];
+        expected_packet.queries = vec![query];
+        expected_packet.answers = vec![expected_answer];
+
+        assert_eq!(expected_packet, actual_packet);
+    }
+
+    #[test]
+    fn test_authoritative_soa_query() {
+        unimplemented!();
     }
 
     #[test]

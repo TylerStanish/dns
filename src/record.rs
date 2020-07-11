@@ -29,7 +29,7 @@ impl RecordInformation {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Record {
     pub name: String,
-    pub ttl: usize,
+    pub ttl: u32,
     pub rec_type: ResourceType,
     pub rec_class: String, // should always be 'IN'
     // this needs to be strongly typed (and not just Vec<u8> because we need to serialize it
@@ -57,7 +57,7 @@ impl Record {
             .expect("Unsupported resource type");
         Record {
             name: extract_string(yaml, "name").unwrap(),
-            ttl: extract_integer(yaml, "ttl").unwrap() as usize,
+            ttl: extract_integer(yaml, "ttl").unwrap() as u32,
             rec_type: rec_type.clone(),
             rec_class: extract_string(yaml, "class").unwrap(),
             data: RecordInformation::new_from_type_and_yaml(rec_type, &yaml["data"]),

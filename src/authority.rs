@@ -50,7 +50,7 @@ impl Authority {
             .iter()
             .filter(|rec| rec.rec_type == ResourceType::StartOfAuthority)
             .count();
-        assert_eq!(1, soa_count);
+        assert_eq!(1, soa_count, "You must have one SOA record in each file");
     }
 }
 

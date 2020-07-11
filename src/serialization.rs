@@ -104,6 +104,14 @@ pub fn expand_pointers(packet_bytes: &[u8], name_bytes: &[u8]) -> Result<Vec<u8>
     Ok(res)
 }
 
+pub fn deserialize_ipv4_from_str(s: &str) -> Vec<u8> {
+    let mut res = Vec::with_capacity(4);
+    for byte in s.split(".") {
+        res.push(byte.parse().expect("Invalid ipv4 address"));
+    }
+    res
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,5 +201,13 @@ mod tests {
         bytes.append(&mut third_bytes.to_vec());
         let res = expand_pointers(&bytes, &third_bytes).unwrap();
         assert_eq!(second_bytes[..9].to_vec(), res);
+    }
+
+    #[test]
+    fn test_deserialize_ipv4_from_str() {
+        let mut expected = deserialize_ipv4_from_str("1.2.3.4");
+        assert_eq!(expected, vec![0x1, 0x2, 0x3, 0x4]);
+        expected = deserialize_ipv4_from_str("12.34.56.78");
+        assert_eq!(expected, vec![12, 34, 56, 78]);
     }
 }
