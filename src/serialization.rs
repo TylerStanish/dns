@@ -1,5 +1,6 @@
 use crate::header::ResponseCode;
 use crate::packet::DnsPacket;
+use std::net::Ipv6Addr;
 use std::str;
 
 pub trait FromBytes: Sized {
@@ -112,6 +113,15 @@ pub fn deserialize_ipv4_from_str(s: &str) -> Vec<u8> {
     res
 }
 
+pub fn deserialize_ipv6_from_str(s: &str) -> Vec<u8> {
+    let mut res = Vec::with_capacity(16);
+    for segment in s.parse::<Ipv6Addr>().expect(&format!("Invalid ipv6 address {}", s)).segments().iter() {
+        res.push(((segment & 0xff00) >> 8) as u8);
+        res.push((*segment) as u8);
+    }
+    res
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -205,9 +215,15 @@ mod tests {
 
     #[test]
     fn test_deserialize_ipv4_from_str() {
-        let mut expected = deserialize_ipv4_from_str("1.2.3.4");
-        assert_eq!(expected, vec![0x1, 0x2, 0x3, 0x4]);
-        expected = deserialize_ipv4_from_str("12.34.56.78");
-        assert_eq!(expected, vec![12, 34, 56, 78]);
+        let mut actual = deserialize_ipv4_from_str("1.2.3.4");
+        assert_eq!(actual, vec![0x1, 0x2, 0x3, 0x4]);
+        actual = deserialize_ipv4_from_str("12.34.56.78");
+        assert_eq!(actual, vec![12, 34, 56, 78]);
+    }
+
+    #[test]
+    fn test_deserialize_ipv6_from_str() {
+        let actual = deserialize_ipv6_from_str("2607:f8b0:4009:811::200e");
+        assert_eq!(actual, vec![0x26, 0x07, 0xf8, 0xb0, 0x40, 0x09, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x0e]);
     }
 }
