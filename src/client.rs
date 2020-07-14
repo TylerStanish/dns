@@ -4,10 +4,8 @@ use crate::cache::Cache;
 use crate::header::{ResourceType, ResponseCode};
 use crate::packet::DnsPacket;
 use crate::query::DnsQuery;
-use crate::record::RecordInformation;
+use crate::record::{SoaInformation, RecordInformation};
 use crate::serialization::{deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes};
-use std::mem;
-use std::net::UdpSocket;
 
 pub struct DnsClient<'a, F>
 where
@@ -121,6 +119,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempdir::TempDir;
     use ttl_cache::TtlCache;
+    use yaml_rust::YamlLoader;
 
     #[test]
     fn accepts_single_question_only() {
@@ -180,7 +179,7 @@ records:
   - type: SOA
     class: IN
     ttl: 60
-    name: bar
+    name: baz
     data:
       domain: foo
       fqdn: soa.foo.com.
@@ -208,6 +207,7 @@ records:
 ";
         authority_file.write_all(input).unwrap();
 
+        // test A
         let mut query = DnsQuery::new();
         query.name = "baz.foo.com".to_owned();
         query.qtype = ResourceType::A;
@@ -236,6 +236,7 @@ records:
 
         assert_eq!(expected_packet, actual_packet);
 
+        // test AAAA
         let mut query = DnsQuery::new();
         query.name = "baz.foo.com".to_owned();
         query.qtype = ResourceType::AAAA;
@@ -263,6 +264,7 @@ records:
         assert_eq!(expected_packet, actual_packet);
 
 
+        // test cname
         let mut query = DnsQuery::new();
         query.name = "baz.foo.com".to_owned();
         query.qtype = ResourceType::CName;
@@ -283,6 +285,44 @@ records:
         expected_answer.qtype = ResourceType::CName;
         expected_answer.ttl = 30;
         expected_answer.rdata = serialize_domain_to_bytes("bla.com");
+        expected_answer.data_length = expected_answer.rdata.len() as u16;
+        expected_packet.queries = vec![query];
+        expected_packet.answers = vec![expected_answer];
+
+        assert_eq!(expected_packet, actual_packet);
+
+        // test soa
+        let mut query = DnsQuery::new();
+        query.name = "baz.foo.com".to_owned();
+        query.qtype = ResourceType::StartOfAuthority;
+        let mut req = DnsPacket::new();
+        req.queries = vec![query.clone()];
+        req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
+
+        let actual_packet = client.standard_query(req);
+
+        let soa_yaml = "
+domain: foo
+fqdn: soa.foo.com.
+email: foo@foo.com
+serial: 42
+refresh: 43
+retry: 44
+expire: 45
+minimum: 46";
+        let yaml = YamlLoader::load_from_str(soa_yaml).unwrap();
+        let soa_information = SoaInformation::from_yaml(&yaml[0]);
+        let mut expected_packet = DnsPacket::new_response();
+        expected_packet.header.questions_count = 1;
+        expected_packet.header.answers_count = 1;
+        expected_packet.header.authoritative = true;
+        expected_packet.header.tx_id = 0xbeef;
+        let mut expected_answer = DnsAnswer::new();
+        expected_answer.name = "baz.foo.com".to_owned();
+        expected_answer.qtype = ResourceType::StartOfAuthority;
+        expected_answer.ttl = 60;
+        expected_answer.rdata = soa_information.to_bytes();
         expected_answer.data_length = expected_answer.rdata.len() as u16;
         expected_packet.queries = vec![query];
         expected_packet.answers = vec![expected_answer];
