@@ -82,8 +82,9 @@ where
                                 ans.rdata = serialize_domain_to_bytes(data);
                                 ans.data_length = ans.rdata.len() as u16;
                             }
-                            RecordInformation::Soa(_data) => {
-                                unimplemented!();
+                            RecordInformation::Soa(data) => {
+                                ans.rdata = data.to_bytes();
+                                ans.data_length = ans.rdata.len() as u16;
                             }
                         }
                         let mut res = DnsPacket::new_response();

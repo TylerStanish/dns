@@ -1,8 +1,10 @@
 use std::convert::TryInto;
 
+use byteorder::{ByteOrder, NetworkEndian, WriteBytesExt};
 use yaml_rust::Yaml;
 
 use crate::header::ResourceType;
+use crate::serialization::{serialize_domain_to_bytes, ToBytes};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RecordInformation {
@@ -105,6 +107,24 @@ impl SoaInformation {
     }
 }
 
+impl ToBytes for SoaInformation {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut res = Vec::new();
+        let mut fqdn = self.fqdn.as_str();
+        if self.fqdn.ends_with(".") {
+            fqdn = &self.fqdn[..self.fqdn.len()-1];
+        }
+        res.extend(serialize_domain_to_bytes(fqdn));
+        res.extend(serialize_domain_to_bytes(&self.email));
+        res.write_u16::<NetworkEndian>(self.serial as u16).unwrap();
+        res.write_u16::<NetworkEndian>(self.refresh as u16).unwrap();
+        res.write_u16::<NetworkEndian>(self.retry as u16).unwrap();
+        res.write_u16::<NetworkEndian>(self.expire as u16).unwrap();
+        res.write_u16::<NetworkEndian>(self.minimum as u16).unwrap();
+        res
+    }
+}
+
 pub fn extract_integer(yaml: &Yaml, key: &str) -> Result<i64, ()> {
     match yaml[key] {
         Yaml::Integer(n) => Ok(n),
@@ -124,6 +144,7 @@ pub fn extract_string(yaml: &Yaml, key: &str) -> Result<String, ()> {
 mod tests {
     use super::*;
     use yaml_rust::YamlLoader;
+    use crate::serialization::serialize_domain_to_bytes;
 
     #[test]
     fn test_record_from_yaml() {
@@ -169,5 +190,30 @@ mod tests {
         expected_authority_info.expire = 45;
         expected_authority_info.minimum = 46;
         assert_eq!(expected_authority_info, actual_authority_info);
+    }
+
+    #[test]
+    fn test_soa_info_to_bytes() {
+        let input = "
+            domain: foo
+            fqdn: soa.foo.com.
+            email: mail.foo.com
+            serial: 42
+            refresh: 43
+            retry: 44
+            expire: 45
+            minimum: 46
+        ";
+        let yaml = YamlLoader::load_from_str(input).unwrap();
+        let actual_authority_info = SoaInformation::from_yaml(&yaml[0]);
+        let mut expected_bytes = serialize_domain_to_bytes("soa.foo.com");
+        expected_bytes.extend(serialize_domain_to_bytes("mail.foo.com"));
+        expected_bytes.write_u16::<NetworkEndian>(42).unwrap();
+        expected_bytes.write_u16::<NetworkEndian>(43).unwrap();
+        expected_bytes.write_u16::<NetworkEndian>(44).unwrap();
+        expected_bytes.write_u16::<NetworkEndian>(45).unwrap();
+        expected_bytes.write_u16::<NetworkEndian>(46).unwrap();
+
+        assert_eq!(expected_bytes, actual_authority_info.to_bytes());
     }
 }
