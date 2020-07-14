@@ -5,7 +5,7 @@ use crate::header::{ResourceType, ResponseCode};
 use crate::packet::DnsPacket;
 use crate::query::DnsQuery;
 use crate::record::RecordInformation;
-use crate::serialization::{deserialize_ipv4_from_str, deserialize_ipv6_from_str, ToBytes};
+use crate::serialization::{deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes};
 use std::mem;
 use std::net::UdpSocket;
 
@@ -79,9 +79,10 @@ where
                                 ans.rdata = deserialize_ipv6_from_str(&data);
                             }
                             RecordInformation::CName(data) => {
-                                unimplemented!();
+                                ans.rdata = serialize_domain_to_bytes(data);
+                                ans.data_length = ans.rdata.len() as u16;
                             }
-                            RecordInformation::Soa(data) => {
+                            RecordInformation::Soa(_data) => {
                                 unimplemented!();
                             }
                         }
@@ -198,6 +199,11 @@ records:
     ttl: 30
     name: baz
     data: 2607:f8b0:4009:811::200e
+  - type: CNAME
+    class: IN
+    ttl: 30
+    name: baz
+    data: bla.com
 ";
         authority_file.write_all(input).unwrap();
 
@@ -250,6 +256,33 @@ records:
         expected_answer.ttl = 30;
         expected_answer.data_length = 16;
         expected_answer.rdata = vec![0x26, 0x07, 0xf8, 0xb0, 0x40, 0x09, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x0e];
+        expected_packet.queries = vec![query];
+        expected_packet.answers = vec![expected_answer];
+
+        assert_eq!(expected_packet, actual_packet);
+
+
+        let mut query = DnsQuery::new();
+        query.name = "baz.foo.com".to_owned();
+        query.qtype = ResourceType::CName;
+        let mut req = DnsPacket::new();
+        req.queries = vec![query.clone()];
+        req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
+
+        let actual_packet = client.standard_query(req);
+
+        let mut expected_packet = DnsPacket::new_response();
+        expected_packet.header.questions_count = 1;
+        expected_packet.header.answers_count = 1;
+        expected_packet.header.authoritative = true;
+        expected_packet.header.tx_id = 0xbeef;
+        let mut expected_answer = DnsAnswer::new();
+        expected_answer.name = "baz.foo.com".to_owned();
+        expected_answer.qtype = ResourceType::CName;
+        expected_answer.ttl = 30;
+        expected_answer.rdata = serialize_domain_to_bytes("bla.com");
+        expected_answer.data_length = expected_answer.rdata.len() as u16;
         expected_packet.queries = vec![query];
         expected_packet.answers = vec![expected_answer];
 
