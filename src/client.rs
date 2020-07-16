@@ -4,8 +4,10 @@ use crate::cache::Cache;
 use crate::header::{ResourceType, ResponseCode};
 use crate::packet::DnsPacket;
 use crate::query::DnsQuery;
-use crate::record::{SoaInformation, RecordInformation};
-use crate::serialization::{deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes};
+use crate::record::{RecordInformation, SoaInformation};
+use crate::serialization::{
+    deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes,
+};
 
 pub struct DnsClient<'a, F>
 where
@@ -58,7 +60,10 @@ where
             let tld = parts.last().unwrap();
             let auths = authorities();
             // check custom tlds
-            for tld_match in auths.iter().filter(|a| a.origin.split(".").last().unwrap_or("") == *tld) {
+            for tld_match in auths
+                .iter()
+                .filter(|a| a.origin.split(".").last().unwrap_or("") == *tld)
+            {
                 for record in &tld_match.records {
                     let name = record.name.clone() + "." + &tld_match.origin;
                     if query.qtype == record.rec_type && query.name == name {
@@ -68,7 +73,7 @@ where
                         ans.name = name;
                         ans.qtype = query.qtype.clone();
                         match &record.data {
-                            RecordInformation::A(data)  => {
+                            RecordInformation::A(data) => {
                                 ans.data_length = 4;
                                 ans.rdata = deserialize_ipv4_from_str(&data);
                             }
@@ -112,11 +117,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use std::env;
     use std::fs::File;
     use std::io::Write;
     use std::time::Duration;
-    use pretty_assertions::assert_eq;
     use tempdir::TempDir;
     use ttl_cache::TtlCache;
     use yaml_rust::YamlLoader;
@@ -257,12 +262,14 @@ records:
         expected_answer.qtype = ResourceType::AAAA;
         expected_answer.ttl = 30;
         expected_answer.data_length = 16;
-        expected_answer.rdata = vec![0x26, 0x07, 0xf8, 0xb0, 0x40, 0x09, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x0e];
+        expected_answer.rdata = vec![
+            0x26, 0x07, 0xf8, 0xb0, 0x40, 0x09, 0x08, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x20, 0x0e,
+        ];
         expected_packet.queries = vec![query];
         expected_packet.answers = vec![expected_answer];
 
         assert_eq!(expected_packet, actual_packet);
-
 
         // test cname
         let mut query = DnsQuery::new();

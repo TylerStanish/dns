@@ -112,7 +112,7 @@ impl ToBytes for SoaInformation {
         let mut res = Vec::new();
         let mut fqdn = self.fqdn.as_str();
         if self.fqdn.ends_with(".") {
-            fqdn = &self.fqdn[..self.fqdn.len()-1];
+            fqdn = &self.fqdn[..self.fqdn.len() - 1];
         }
         res.extend(serialize_domain_to_bytes(fqdn));
         res.extend(serialize_domain_to_bytes(&self.email));
@@ -143,8 +143,8 @@ pub fn extract_string(yaml: &Yaml, key: &str) -> Result<String, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use yaml_rust::YamlLoader;
     use crate::serialization::serialize_domain_to_bytes;
+    use yaml_rust::YamlLoader;
 
     #[test]
     fn test_record_from_yaml() {
