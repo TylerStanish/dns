@@ -79,14 +79,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_dns_answer_to_bytes_all_zero() {
-        let ans = DnsAnswer::new();
-        let actual_bytes = ans.to_bytes();
-        let expected_bytes = [0; 10].to_vec();
-        assert_eq!(expected_bytes, actual_bytes);
-    }
-
-    #[test]
     fn test_dns_answer_to_bytes() {
         let mut ans = DnsAnswer::new();
         ans.name = "foo.bar.com".to_owned();

@@ -1,3 +1,5 @@
+To run the tests, run `cargo test -- --test-threads 1`
+
 Features
   - Full packet (de)serialization
   - Record types

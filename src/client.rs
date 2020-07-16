@@ -329,14 +329,4 @@ minimum: 46";
 
         assert_eq!(expected_packet, actual_packet);
     }
-
-    #[test]
-    fn test_authoritative_soa_query() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn test_custom_ttl() {
-        unimplemented!();
-    }
 }

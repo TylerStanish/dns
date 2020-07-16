@@ -118,14 +118,6 @@ mod tests {
     }
 
     #[test]
-    fn test_dns_query_to_bytes_all_zero() {
-        let query = DnsQuery::new();
-        let actual_bytes = query.to_bytes();
-        let expected_bytes = [0x00u8, 0x00, 0x00, 0x00].to_vec();
-        assert_eq!(expected_bytes, actual_bytes);
-    }
-
-    #[test]
     fn test_dns_query_to_bytes() {
         let mut query = DnsQuery::new();
         query.name = "foo.bar.com".to_owned();
