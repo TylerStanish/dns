@@ -19,7 +19,7 @@ fn main() {
     // before serving any requests
     authority::authorities();
 
-    let sock = UdpSocket::bind("0.0.0.0:5553").expect("Could not create server");
+    let sock = UdpSocket::bind("0.0.0.0:53").expect("Could not create server");
     let mut cache = TtlCache::<query::DnsQuery, answer::DnsAnswer>::new(1024);
     let client = client::DnsClient::new(&resolvers::default_resolver, &mut cache);
     loop {

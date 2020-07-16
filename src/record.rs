@@ -114,13 +114,15 @@ impl ToBytes for SoaInformation {
         if self.fqdn.ends_with(".") {
             fqdn = &self.fqdn[..self.fqdn.len() - 1];
         }
-        res.extend(serialize_domain_to_bytes(fqdn));
-        res.extend(serialize_domain_to_bytes(&self.email));
-        res.write_u16::<NetworkEndian>(self.serial as u16).unwrap();
-        res.write_u16::<NetworkEndian>(self.refresh as u16).unwrap();
-        res.write_u16::<NetworkEndian>(self.retry as u16).unwrap();
-        res.write_u16::<NetworkEndian>(self.expire as u16).unwrap();
-        res.write_u16::<NetworkEndian>(self.minimum as u16).unwrap();
+        let domain = serialize_domain_to_bytes(fqdn);
+        res.extend(domain);
+        let email = serialize_domain_to_bytes(&self.email);
+        res.extend(email);
+        res.write_u32::<NetworkEndian>(self.serial as u32).unwrap();
+        res.write_u32::<NetworkEndian>(self.refresh as u32).unwrap();
+        res.write_u32::<NetworkEndian>(self.retry as u32).unwrap();
+        res.write_u32::<NetworkEndian>(self.expire as u32).unwrap();
+        res.write_u32::<NetworkEndian>(self.minimum as u32).unwrap();
         res
     }
 }
@@ -208,11 +210,11 @@ mod tests {
         let actual_authority_info = SoaInformation::from_yaml(&yaml[0]);
         let mut expected_bytes = serialize_domain_to_bytes("soa.foo.com");
         expected_bytes.extend(serialize_domain_to_bytes("mail.foo.com"));
-        expected_bytes.write_u16::<NetworkEndian>(42).unwrap();
-        expected_bytes.write_u16::<NetworkEndian>(43).unwrap();
-        expected_bytes.write_u16::<NetworkEndian>(44).unwrap();
-        expected_bytes.write_u16::<NetworkEndian>(45).unwrap();
-        expected_bytes.write_u16::<NetworkEndian>(46).unwrap();
+        expected_bytes.write_u32::<NetworkEndian>(42).unwrap();
+        expected_bytes.write_u32::<NetworkEndian>(43).unwrap();
+        expected_bytes.write_u32::<NetworkEndian>(44).unwrap();
+        expected_bytes.write_u32::<NetworkEndian>(45).unwrap();
+        expected_bytes.write_u32::<NetworkEndian>(46).unwrap();
 
         assert_eq!(expected_bytes, actual_authority_info.to_bytes());
     }
