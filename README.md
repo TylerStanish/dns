@@ -4,6 +4,7 @@ Features
   - Full packet (de)serialization
   - Record types
     - A
+    - AAAA
     - CNAME
     - SOA
   - Caching
