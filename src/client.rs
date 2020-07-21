@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use crate::answer::DnsAnswer;
 use crate::authority::authorities;
+use crate::blocklist;
 use crate::cache::Cache;
 use crate::header::{ResourceType, ResponseCode};
 use crate::packet::DnsPacket;
@@ -15,6 +17,7 @@ where
 {
     resolver: F,
     cache: &'a mut Cache,
+    blocklist: HashMap<String, bool>,
 }
 
 impl<'a, F> DnsClient<'a, F>
@@ -22,7 +25,7 @@ where
     F: Fn(&str, DnsPacket) -> DnsPacket,
 {
     pub fn new(resolver: F, cache: &'a mut Cache) -> Self {
-        DnsClient { resolver, cache }
+        DnsClient { resolver, cache, blocklist: blocklist::load_blocklist() }
     }
 
     /// Given `self` is a request packet, `results()` will return the packet
@@ -57,6 +60,7 @@ where
                 res.header.is_response = true;
                 return res;
             }
+            // check blocklist
             let tld = parts.last().unwrap();
             let auths = authorities();
             // check custom tlds
