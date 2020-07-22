@@ -34,8 +34,14 @@ where
         match req.header.opcode {
             0 => self.standard_query(req),
             1 => self.inverse_query(req),
-            _ => panic!(),
+            _ => Ok(self.unsupported(req)),
         }
+    }
+
+    fn unsupported(&self, _req: DnsPacket) -> DnsPacket {
+        let mut packet = DnsPacket::new_response();
+        packet.header.response_code = ResponseCode::NotImplemented;
+        packet
     }
 
     /// Assumes the `domain` has at least one '.' else it will panic.
