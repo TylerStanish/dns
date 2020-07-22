@@ -173,7 +173,7 @@ mod tests {
         let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
-        let res = client.results(req);
+        let res = client.results(req).unwrap();
         assert_eq!(res.header.response_code, ResponseCode::NotImplemented);
     }
 
@@ -188,7 +188,7 @@ mod tests {
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
-        let res = client.results(req);
+        let res = client.results(req).unwrap();
         assert_eq!(res.answers, vec![answer]);
     }
 
@@ -201,7 +201,7 @@ mod tests {
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
-        let res = client.results(req);
+        let res = client.results(req).unwrap();
         assert_eq!(res.header.response_code, ResponseCode::NameError);
     }
 
@@ -262,7 +262,7 @@ records:
 
         let mut cache = TtlCache::new(1);
         let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache);
-        let actual_packet = client.standard_query(req);
+        let actual_packet = client.standard_query(req).unwrap();
 
         let mut expected_packet = DnsPacket::new_response();
         expected_packet.header.questions_count = 1;
@@ -289,7 +289,7 @@ records:
         req.header.questions_count = 1;
         req.header.tx_id = 0xbeef;
 
-        let actual_packet = client.standard_query(req);
+        let actual_packet = client.standard_query(req).unwrap();
 
         let mut expected_packet = DnsPacket::new_response();
         expected_packet.header.questions_count = 1;
@@ -319,7 +319,7 @@ records:
         req.header.questions_count = 1;
         req.header.tx_id = 0xbeef;
 
-        let actual_packet = client.standard_query(req);
+        let actual_packet = client.standard_query(req).unwrap();
 
         let mut expected_packet = DnsPacket::new_response();
         expected_packet.header.questions_count = 1;
@@ -346,7 +346,7 @@ records:
         req.header.questions_count = 1;
         req.header.tx_id = 0xbeef;
 
-        let actual_packet = client.standard_query(req);
+        let actual_packet = client.standard_query(req).unwrap();
 
         let soa_yaml = "
 domain: foo
