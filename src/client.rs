@@ -30,7 +30,7 @@ where
 
     /// Given `self` is a request packet, `results()` will return the packet
     /// to send back
-    pub fn results(&self, req: DnsPacket) -> DnsPacket {
+    pub fn results(&self, req: DnsPacket) -> Result<DnsPacket, ()> {
         match req.header.opcode {
             0 => self.standard_query(req),
             1 => self.inverse_query(req),
@@ -38,19 +38,45 @@ where
         }
     }
 
-    fn standard_query(&self, req: DnsPacket) -> DnsPacket {
+    /// Assumes the `domain` has at least one '.' else it will panic.
+    /// Returns `true` if the domain is not in the blocklist.
+    fn check_blocklist(&self, domain: &str) -> bool {
+        // if `domain` or any of its super-domains (with `true` as that value
+        // in the hash map) are present in `self.blocklist` return `false`
+        if self.blocklist.contains_key(domain) {
+            return false;
+        }
+
+        let mut parts: Vec<&str> = domain.split('.').collect();
+        parts.reverse();
+        let mut suffix = "".to_owned();
+        for part in parts {
+            suffix = part.to_owned() + suffix.as_str();
+            match self.blocklist.get(&suffix) {
+                Some(include_suffix) => {
+                    if *include_suffix {
+                        return false;
+                    }
+                },
+                None => (),
+            }
+        }
+        true
+    }
+
+    fn standard_query(&self, req: DnsPacket) -> Result<DnsPacket, ()> {
         let mut res = req.clone();
         if req.header.questions_count > 1 {
             // failed
             res.header.response_code = ResponseCode::NotImplemented;
-            return res;
+            return Ok(res);
         }
         let mut answers: Vec<DnsAnswer> = Vec::new();
         let query = req.queries.first().unwrap();
         if self.cache.contains_key(&query) {
             answers.push(self.cache.get(&query).unwrap().clone());
             res.answers = vec![self.cache.get(&query).unwrap().clone()];
-            res
+            Ok(res)
         } else {
             // either we own the tld, or we need to get it
             let parts = query.name.split(".").collect::<Vec<&str>>();
@@ -58,9 +84,12 @@ where
                 // invalid domain
                 res.header.response_code = ResponseCode::NameError;
                 res.header.is_response = true;
-                return res;
+                return Ok(res);
             }
             // check blocklist
+            if !self.check_blocklist(&query.name) {
+                return Err(());
+            }
             let tld = parts.last().unwrap();
             let auths = authorities();
             // check custom tlds
@@ -101,7 +130,7 @@ where
                         res.header.tx_id = req.header.tx_id;
                         res.queries = req.queries;
                         res.answers = vec![ans];
-                        return res;
+                        return Ok(res);
                     }
                 }
             }
@@ -109,11 +138,11 @@ where
             let res = (self.resolver)("1.1.1.1", req);
             // TODO If we got any answers, return them. Else check any authoritative records
             // and recurse
-            res
+            Ok(res)
         }
     }
 
-    fn inverse_query(&self, req: DnsPacket) -> DnsPacket {
+    fn inverse_query(&self, req: DnsPacket) -> Result<DnsPacket, ()> {
         unimplemented!()
     }
 }

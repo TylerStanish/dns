@@ -26,15 +26,21 @@ fn main() {
     loop {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
-        let result = match packet::DnsPacket::from_bytes(&mut buf[..nread]) {
-            Ok((packet, _)) => client.results(packet),
+        match packet::DnsPacket::from_bytes(&mut buf[..nread]) {
+            Ok((packet, _)) => {
+                match client.results(packet) {
+                    Ok(packet) => {
+                        sock.send_to(&packet.to_bytes(), &src).unwrap();
+                    },
+                    Err(()) => (), // simply don't return any packets as the domain hit the blocklist
+                };
+            },
             Err(_) => {
                 let mut packet = packet::DnsPacket::new();
                 packet.header.response_code = header::ResponseCode::FormatError;
-                packet
+                sock.send_to(&packet.to_bytes(), &src).unwrap();
             }
         };
-        sock.send_to(&result.to_bytes(), &src).unwrap();
     }
 }
 
