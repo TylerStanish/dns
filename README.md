@@ -1,9 +1,15 @@
 To run the tests, run `cargo test -- --test-threads 1`
+To run the server, run `cargo run`
+
+Environment Variables:
+- BLOCKLIST_FILE
+- AUTHORITY_DIR
 
 Features
   - Full packet (de)serialization
   - Record types
     - A
+    - AAAA
     - CNAME
     - SOA
   - Caching
@@ -12,10 +18,10 @@ Features
       generate, ... However all programs are required to understand arriving
       messages that contain pointers.'
   - Provide TLDs
-  - Authoritative (and recursive) server
+  - Authoritative and recursive server
+  - Block-list for blocking websites
 
 Possible Extra Features:
-  - Block-list for blocking websites
   - Web dashboard/api
   - Multithreaded
   - IPv6 support

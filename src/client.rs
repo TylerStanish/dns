@@ -24,8 +24,8 @@ impl<'a, F> DnsClient<'a, F>
 where
     F: Fn(&str, DnsPacket) -> DnsPacket,
 {
-    pub fn new(resolver: F, cache: &'a mut Cache) -> Self {
-        DnsClient { resolver, cache, blocklist: blocklist::load_blocklist() }
+    pub fn new(resolver: F, cache: &'a mut Cache, blocklist: HashMap<String, bool>) -> Self {
+        DnsClient { resolver, cache, blocklist, }
     }
 
     /// Given `self` is a request packet, `results()` will return the packet
@@ -57,7 +57,12 @@ where
         parts.reverse();
         let mut suffix = "".to_owned();
         for part in parts {
-            suffix = part.to_owned() + suffix.as_str();
+            if suffix.is_empty() {
+                suffix = part.to_owned() + suffix.as_str();
+            } else {
+                suffix = part.to_owned() + "." + suffix.as_str();
+            }
+            println!("{}, {:?}", suffix, self.blocklist);
             match self.blocklist.get(&suffix) {
                 Some(include_suffix) => {
                     if *include_suffix {
@@ -158,7 +163,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use std::env;
-    use std::fs::File;
+    use std::fs::{File, remove_file};
     use std::io::Write;
     use std::time::Duration;
     use tempdir::TempDir;
@@ -170,7 +175,7 @@ mod tests {
         // Doesn't compile:
         // let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut TtlCache::new(0));
         let mut cache = TtlCache::new(0);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
         let res = client.results(req).unwrap();
@@ -184,7 +189,7 @@ mod tests {
         answer.name = "12.34.56.78".to_owned();
         let mut cache = TtlCache::new(1);
         cache.insert(query.clone(), answer.clone(), Duration::from_secs(10));
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
@@ -197,7 +202,7 @@ mod tests {
         let mut query = DnsQuery::new();
         query.name = "invalid domain".to_owned();
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
@@ -261,7 +266,7 @@ records:
         req.header.tx_id = 0xbeef;
 
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache);
+        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache, HashMap::new());
         let actual_packet = client.standard_query(req).unwrap();
 
         let mut expected_packet = DnsPacket::new_response();
@@ -374,5 +379,22 @@ minimum: 46";
         expected_packet.answers = vec![expected_answer];
 
         assert_eq!(expected_packet, actual_packet);
+    }
+
+    #[test]
+    fn test_client_blocklist() {
+        let mut query = DnsQuery::new();
+        query.name = "bar.foo.com".to_owned();
+        query.qtype = ResourceType::A;
+        let mut req = DnsPacket::new();
+        req.queries = vec![query.clone()];
+        req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
+
+        let mut cache = TtlCache::new(1);
+        let mut blocklist = HashMap::new();
+        blocklist.insert("foo.com".to_owned(), true);
+        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache, blocklist);
+        client.standard_query(req).unwrap_err();
     }
 }

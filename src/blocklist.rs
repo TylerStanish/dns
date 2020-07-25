@@ -16,13 +16,13 @@ fn validate_blocklist_entry(s: &str) -> Result<(String, bool), String> {
     }
     // strip wildcard
     match pos {
-        Some(p) => s.chars().nth(p),
+        Some(p) => s.chars().nth(p+2),
         None => return Err("'*' must be followed by '.'".to_owned()),
     };
     if pos.unwrap() == s.len() - 2 {
         return Err("'*.' must not appear at end of entry".to_owned());
     }
-    Ok((s[pos.unwrap()..].to_owned(), true))
+    Ok((s[(pos.unwrap()+2)..].to_owned(), true))
 }
 
 pub fn load_blocklist() -> HashMap<String, bool> {
@@ -55,6 +55,6 @@ mod tests {
         validate_blocklist_entry("fdsa*.fdsa*.").unwrap_err();
         validate_blocklist_entry("abcd.*efgh").unwrap_err();
         validate_blocklist_entry("abcd*.").unwrap_err();
-        validate_blocklist_entry("*.foo.com").unwrap();
+        assert_eq!(("foo.com".to_owned(), true), validate_blocklist_entry("*.foo.com").unwrap());
     }
 }

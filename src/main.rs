@@ -22,7 +22,7 @@ fn main() {
 
     let sock = UdpSocket::bind("0.0.0.0:5554").expect("Could not create server");
     let mut cache = TtlCache::<query::DnsQuery, answer::DnsAnswer>::new(1024);
-    let client = client::DnsClient::new(&resolvers::default_resolver, &mut cache);
+    let client = client::DnsClient::new(&resolvers::default_resolver, &mut cache, blocklist::load_blocklist());
     loop {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
