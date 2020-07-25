@@ -42,3 +42,16 @@ pub fn load_blocklist() -> HashMap<String, bool> {
     };
     res
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_blocklist_entry() {
+        validate_blocklist_entry("fdsa*.fdsa*.").unwrap_err();
+        validate_blocklist_entry("abcd.*efgh").unwrap_err();
+        validate_blocklist_entry("abcd*.").unwrap_err();
+        validate_blocklist_entry("*.foo.com").unwrap();
+    }
+}
