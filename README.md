@@ -1,5 +1,5 @@
 To run the tests, run `cargo test -- --test-threads 1`
-To run the server, run `cargo run`
+To run the server, run `cargo run`. It will start on port 5554
 
 Environment Variables:
 - `BLOCKLIST_FILE` the path to a blocklist file (if any)
