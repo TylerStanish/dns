@@ -12,6 +12,7 @@ pub enum RecordInformation {
     AAAA(String),
     CName(String),
     Soa(SoaInformation),
+    MX(MXInformation),
 }
 
 impl RecordInformation {
@@ -23,6 +24,7 @@ impl RecordInformation {
             ResourceType::StartOfAuthority => {
                 RecordInformation::Soa(SoaInformation::from_yaml(&yaml))
             }
+            ResourceType::MX => RecordInformation::MX(MXInformation::from_yaml(&yaml)),
             _ => panic!("Unsupported resource type in record"),
         }
     }
@@ -127,6 +129,37 @@ impl ToBytes for SoaInformation {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct MXInformation {
+    pub preference: u16,
+    pub exchange: String,
+}
+
+impl MXInformation {
+    pub fn new(preference: u16, exchange: String) -> Self {
+        MXInformation {
+            preference,
+            exchange,
+        }
+    }
+
+    pub fn from_yaml(yaml: &Yaml) -> Self {
+        MXInformation {
+            preference: extract_integer(yaml, "preference").unwrap() as u16,
+            exchange: extract_string(yaml, "exchange").unwrap(),
+        }
+    }
+}
+
+impl ToBytes for MXInformation {
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut res = Vec::new();
+        res.write_u16::<NetworkEndian>(self.preference).unwrap();
+        res.append(&mut serialize_domain_to_bytes(&self.exchange));
+        res
+    }
+}
+
 pub fn extract_integer(yaml: &Yaml, key: &str) -> Result<i64, ()> {
     match yaml[key] {
         Yaml::Integer(n) => Ok(n),
@@ -217,5 +250,32 @@ mod tests {
         expected_bytes.write_u32::<NetworkEndian>(46).unwrap();
 
         assert_eq!(expected_bytes, actual_authority_info.to_bytes());
+    }
+
+    #[test]
+    fn test_mx_info_from_yaml() {
+        let input = "
+            preference: 42
+            exchange: mail.foo.com
+        ";
+        let yaml = YamlLoader::load_from_str(input).unwrap();
+        let actual_mx_info = MXInformation::from_yaml(&yaml[0]);
+        let mut expected_mx_info = MXInformation::new(42, "mail.foo.com".to_owned());
+        assert_eq!(expected_mx_info, actual_mx_info);
+    }
+
+    #[test]
+    fn test_mx_info_to_bytes() {
+        let input = "
+            preference: 42
+            exchange: mail.foo.com
+        ";
+        let yaml = YamlLoader::load_from_str(input).unwrap();
+        let actual_mx_info = MXInformation::from_yaml(&yaml[0]);
+        let mut expected_bytes = Vec::new();
+        expected_bytes.write_u16::<NetworkEndian>(42).unwrap();
+        expected_bytes.extend(serialize_domain_to_bytes("mail.foo.com"));
+
+        assert_eq!(expected_bytes, actual_mx_info.to_bytes());
     }
 }

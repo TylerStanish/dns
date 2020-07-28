@@ -9,6 +9,7 @@ pub enum ResourceType {
     CName,
     StartOfAuthority,
     AAAA,
+    MX,
 }
 
 impl ResourceType {
@@ -18,6 +19,7 @@ impl ResourceType {
             Self::A => 1,
             Self::CName => 5,
             Self::StartOfAuthority => 6,
+            Self::MX => 15,
             Self::AAAA => 28,
             _ => 0, // FIXME should this be 0?
         }
@@ -32,6 +34,7 @@ impl TryInto<ResourceType> for u16 {
             1 => Ok(ResourceType::A),
             5 => Ok(ResourceType::CName),
             6 => Ok(ResourceType::StartOfAuthority),
+            15 => Ok(ResourceType::MX),
             28 => Ok(ResourceType::AAAA),
             _ => Err(ResponseCode::NotImplemented),
         }
@@ -47,6 +50,7 @@ impl TryInto<ResourceType> for &str {
             "CNAME" => Ok(ResourceType::CName),
             "SOA" => Ok(ResourceType::StartOfAuthority),
             "AAAA" => Ok(ResourceType::AAAA),
+            "MX" => Ok(ResourceType::MX),
             _ => Err(ResponseCode::NotImplemented),
         }
     }

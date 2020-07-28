@@ -34,6 +34,13 @@ records:
     ttl: 10
     name: foo
     data: 12.34.56.78
+  - type: MX
+    class: IN
+    ttl: 2000
+    name: mail
+    data:
+      preference: 2
+      exchange: foo.customdomain.customtld
 ```
 
 Features
@@ -43,6 +50,7 @@ Features
     - AAAA
     - CNAME
     - SOA
+    - MX
   - Caching
   - Jump directives/Pointer decompression
     - From RFC1035: 'Programs are free to avoid using pointers in messages they

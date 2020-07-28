@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::answer::DnsAnswer;
 use crate::authority::authorities;
 use crate::blocklist;
@@ -10,6 +9,7 @@ use crate::record::{RecordInformation, SoaInformation};
 use crate::serialization::{
     deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes,
 };
+use std::collections::HashMap;
 
 pub struct DnsClient<'a, F>
 where
@@ -25,7 +25,11 @@ where
     F: Fn(&str, DnsPacket) -> DnsPacket,
 {
     pub fn new(resolver: F, cache: &'a mut Cache, blocklist: HashMap<String, bool>) -> Self {
-        DnsClient { resolver, cache, blocklist, }
+        DnsClient {
+            resolver,
+            cache,
+            blocklist,
+        }
     }
 
     /// Given `self` is a request packet, `results()` will return the packet
@@ -68,7 +72,7 @@ where
                     if *include_suffix {
                         return false;
                     }
-                },
+                }
                 None => (),
             }
         }
@@ -133,6 +137,10 @@ where
                                 ans.rdata = data.to_bytes();
                                 ans.data_length = ans.rdata.len() as u16;
                             }
+                            RecordInformation::MX(data) => {
+                                ans.rdata = data.to_bytes();
+                                ans.data_length = ans.rdata.len() as u16;
+                            }
                         }
                         let mut res = DnsPacket::new_response();
                         res.header.authoritative = true;
@@ -161,9 +169,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use byteorder::{NetworkEndian, WriteBytesExt};
     use pretty_assertions::assert_eq;
     use std::env;
-    use std::fs::{File, remove_file};
+    use std::fs::{remove_file, File};
     use std::io::Write;
     use std::time::Duration;
     use tempdir::TempDir;
@@ -253,6 +262,13 @@ records:
     ttl: 30
     name: baz
     data: bla.com
+  - type: MX
+    class: IN
+    name: baz
+    ttl: 30
+    data:
+      preference: 42
+      exchange: mail.foo.com
 ";
         authority_file.write_all(input).unwrap();
 
@@ -336,6 +352,39 @@ records:
         expected_answer.qtype = ResourceType::CName;
         expected_answer.ttl = 30;
         expected_answer.rdata = serialize_domain_to_bytes("bla.com");
+        expected_answer.data_length = expected_answer.rdata.len() as u16;
+        expected_packet.queries = vec![query];
+        expected_packet.answers = vec![expected_answer];
+
+        assert_eq!(expected_packet, actual_packet);
+
+        // test mx
+        let mut query = DnsQuery::new();
+        query.name = "baz.foo.com".to_owned();
+        query.qtype = ResourceType::MX;
+        let mut req = DnsPacket::new();
+        req.queries = vec![query.clone()];
+        req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
+
+        let actual_packet = client.standard_query(req).unwrap();
+
+        let mut expected_packet = DnsPacket::new_response();
+        expected_packet.header.questions_count = 1;
+        expected_packet.header.answers_count = 1;
+        expected_packet.header.authoritative = true;
+        expected_packet.header.tx_id = 0xbeef;
+        let mut expected_answer = DnsAnswer::new();
+        expected_answer.name = "baz.foo.com".to_owned();
+        expected_answer.qtype = ResourceType::MX;
+        expected_answer.ttl = 30;
+        expected_answer
+            .rdata
+            .write_u16::<NetworkEndian>(42)
+            .unwrap();
+        expected_answer
+            .rdata
+            .extend(serialize_domain_to_bytes("mail.foo.com"));
         expected_answer.data_length = expected_answer.rdata.len() as u16;
         expected_packet.queries = vec![query];
         expected_packet.answers = vec![expected_answer];

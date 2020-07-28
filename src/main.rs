@@ -22,7 +22,11 @@ fn main() {
 
     let sock = UdpSocket::bind("0.0.0.0:5554").expect("Could not create server");
     let mut cache = TtlCache::<query::DnsQuery, answer::DnsAnswer>::new(1024);
-    let client = client::DnsClient::new(&resolvers::default_resolver, &mut cache, blocklist::load_blocklist());
+    let client = client::DnsClient::new(
+        &resolvers::default_resolver,
+        &mut cache,
+        blocklist::load_blocklist(),
+    );
     loop {
         let mut buf = [0; 1024];
         let (nread, src) = sock.recv_from(&mut buf).unwrap();
@@ -31,10 +35,10 @@ fn main() {
                 match client.results(packet) {
                     Ok(packet) => {
                         sock.send_to(&packet.to_bytes(), &src).unwrap();
-                    },
+                    }
                     Err(()) => (), // simply don't return any packets as the domain hit the blocklist
                 };
-            },
+            }
             Err(_) => {
                 let mut packet = packet::DnsPacket::new();
                 packet.header.response_code = header::ResponseCode::FormatError;
