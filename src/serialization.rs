@@ -52,7 +52,7 @@ pub fn deserialize_domain_from_bytes(
     loop {
         let len = bytes[curr_byte];
         if len & 0xc0 == 0xc0 {
-            match expand_pointers(&packet_bytes, &bytes[0..]) {
+            match expand_pointers(&packet_bytes, &bytes) {
                 Ok(name_bytes) => {
                     match deserialize_domain_from_bytes(packet_bytes, &name_bytes) {
                         Ok((s, _)) => name.push_str(&s),
@@ -161,6 +161,14 @@ mod tests {
         let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&vec![], &bytes).unwrap();
         assert_eq!("foo.com", actual_bytes);
         assert_eq!(9, bytes_read);
+
+        let bytes = [
+            0x03u8, 0x66, 0x6f, 0x6f, 0x00, // foo
+            03u8, 0x6e, 0x73, 0x34, 0xc0, 0x00,
+        ];
+        let (actual_bytes, bytes_read) = deserialize_domain_from_bytes(&bytes, &bytes[5..]).unwrap();
+        assert_eq!("ns4.foo", actual_bytes);
+        assert_eq!(6, bytes_read);
     }
 
     #[test]

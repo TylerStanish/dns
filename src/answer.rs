@@ -43,17 +43,31 @@ impl DnsAnswer {
         bytes_read += 4;
         let data_length = NetworkEndian::read_u16(&bytes[bytes_read..]);
         bytes_read += 2;
-        // TODO ay, assuming ipv4. What if the resolver returns an ipv6 addr?
-        let rdata = bytes[bytes_read..(bytes_read + data_length as usize)].to_vec();
-        bytes_read += 4;
+        let b = match qtype {
+            ResourceType::NS | ResourceType::CName => {
+                let (domain, num_read) = deserialize_domain_from_bytes(&packet_bytes, &bytes[bytes_read..]).unwrap();
+                bytes_read += num_read;
+                serialize_domain_to_bytes(&domain).to_vec()
+            },
+            ResourceType::AAAA => {
+                let rdata = bytes[bytes_read..(bytes_read + data_length as usize)].to_vec();
+                bytes_read += 6;
+                rdata
+            }
+            _ => {
+                let rdata = bytes[bytes_read..(bytes_read + data_length as usize)].to_vec();
+                bytes_read += 4;
+                rdata
+            }
+        };
         Ok((
             DnsAnswer {
                 name,
                 qtype,
                 class,
                 ttl,
-                data_length,
-                rdata,
+                data_length: b.len() as u16,
+                rdata: b,
             },
             bytes_read,
         ))

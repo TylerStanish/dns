@@ -7,9 +7,10 @@ use crate::packet::DnsPacket;
 use crate::query::DnsQuery;
 use crate::record::{RecordInformation, SoaInformation};
 use crate::serialization::{
-    deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes,
+    deserialize_ipv4_from_str, deserialize_ipv6_from_str, serialize_domain_to_bytes, ToBytes, deserialize_domain_from_bytes,
 };
 use std::collections::HashMap;
+use std::fs::read_to_string;
 
 pub struct DnsClient<'a, F>
 where
@@ -66,7 +67,6 @@ where
             } else {
                 suffix = part.to_owned() + "." + suffix.as_str();
             }
-            println!("{}, {:?}", suffix, self.blocklist);
             match self.blocklist.get(&suffix) {
                 Some(include_suffix) => {
                     if *include_suffix {
@@ -125,6 +125,10 @@ where
                                 ans.data_length = 4;
                                 ans.rdata = deserialize_ipv4_from_str(&data);
                             }
+                            RecordInformation::NS(data) => {
+                                ans.rdata = serialize_domain_to_bytes(data);
+                                ans.data_length = ans.rdata.len() as u16;
+                            }
                             RecordInformation::AAAA(data) => {
                                 ans.data_length = 16;
                                 ans.rdata = deserialize_ipv6_from_str(&data);
@@ -155,8 +159,6 @@ where
             }
             // check local authorities for the address, else go to the web
             let res = (self.resolver)("1.1.1.1", req);
-            // TODO If we got any answers, return them. Else check any authoritative records
-            // and recurse
             Ok(res)
         }
     }
@@ -171,6 +173,18 @@ where
         res.header.response_code = ResponseCode::NotImplemented;
         Ok(res)
     }
+
+    /*
+    fn recursive_resolve(&self) -> Result<DnsPacket, ()> {
+        let authoritative_nameserver = "198.41.0.4";
+    }
+    */
+}
+
+fn get_nameserver() -> String {
+    let file = String::new();
+    read_to_string("src/named.root").expect("Could not open named.root file");
+    file
 }
 
 #[cfg(test)]
@@ -285,6 +299,11 @@ records:
     data:
       preference: 42
       exchange: mail.foo.com
+  - type: NS
+    class: IN
+    name: baz
+    ttl: 30
+    data: ns.foo.com
 ";
         authority_file.write_all(input).unwrap();
 
@@ -439,6 +458,33 @@ minimum: 46";
         expected_answer.qtype = ResourceType::StartOfAuthority;
         expected_answer.ttl = 60;
         expected_answer.rdata = soa_information.to_bytes();
+        expected_answer.data_length = expected_answer.rdata.len() as u16;
+        expected_packet.queries = vec![query];
+        expected_packet.answers = vec![expected_answer];
+
+        assert_eq!(expected_packet, actual_packet);
+
+        // test ns
+        let mut query = DnsQuery::new();
+        query.name = "baz.foo.com".to_owned();
+        query.qtype = ResourceType::NS;
+        let mut req = DnsPacket::new();
+        req.queries = vec![query.clone()];
+        req.header.questions_count = 1;
+        req.header.tx_id = 0xbeef;
+
+        let actual_packet = client.standard_query(req).unwrap();
+
+        let mut expected_packet = DnsPacket::new_response();
+        expected_packet.header.questions_count = 1;
+        expected_packet.header.answers_count = 1;
+        expected_packet.header.authoritative = true;
+        expected_packet.header.tx_id = 0xbeef;
+        let mut expected_answer = DnsAnswer::new();
+        expected_answer.name = "baz.foo.com".to_owned();
+        expected_answer.qtype = ResourceType::NS;
+        expected_answer.ttl = 30;
+        expected_answer.rdata = serialize_domain_to_bytes("ns.foo.com");
         expected_answer.data_length = expected_answer.rdata.len() as u16;
         expected_packet.queries = vec![query];
         expected_packet.answers = vec![expected_answer];

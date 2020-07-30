@@ -10,6 +10,7 @@ pub enum ResourceType {
     StartOfAuthority,
     AAAA,
     MX,
+    NS,
 }
 
 impl ResourceType {
@@ -17,6 +18,7 @@ impl ResourceType {
         match self {
             Self::Unused => 0,
             Self::A => 1,
+            Self::NS => 2,
             Self::CName => 5,
             Self::StartOfAuthority => 6,
             Self::MX => 15,
@@ -32,6 +34,7 @@ impl TryInto<ResourceType> for u16 {
         match self {
             0 => Ok(ResourceType::Unused),
             1 => Ok(ResourceType::A),
+            2 => Ok(ResourceType::NS),
             5 => Ok(ResourceType::CName),
             6 => Ok(ResourceType::StartOfAuthority),
             15 => Ok(ResourceType::MX),
@@ -47,6 +50,7 @@ impl TryInto<ResourceType> for &str {
         match self {
             "" => Ok(ResourceType::Unused),
             "A" => Ok(ResourceType::A),
+            "NS" => Ok(ResourceType::NS),
             "CNAME" => Ok(ResourceType::CName),
             "SOA" => Ok(ResourceType::StartOfAuthority),
             "AAAA" => Ok(ResourceType::AAAA),

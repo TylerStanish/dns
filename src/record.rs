@@ -13,6 +13,7 @@ pub enum RecordInformation {
     CName(String),
     Soa(SoaInformation),
     MX(MXInformation),
+    NS(String),
 }
 
 impl RecordInformation {
@@ -25,6 +26,7 @@ impl RecordInformation {
                 RecordInformation::Soa(SoaInformation::from_yaml(&yaml))
             }
             ResourceType::MX => RecordInformation::MX(MXInformation::from_yaml(&yaml)),
+            ResourceType::NS => RecordInformation::NS(extract_string(yaml, "").unwrap()),
             _ => panic!("Unsupported resource type in record"),
         }
     }
