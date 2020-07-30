@@ -34,6 +34,11 @@ records:
     ttl: 10
     name: foo
     data: 12.34.56.78
+  - type: AAAA
+    class: IN
+    ttl: 10
+    name: foo
+    data: ::1
   - type: MX
     class: IN
     ttl: 2000
@@ -41,6 +46,11 @@ records:
     data:
       preference: 2
       exchange: foo.customdomain.customtld
+  - type: NS
+    class: IN
+    ttl: 3000
+    name: ns
+    data: ns.customdomain.customtld
 ```
 
 Features
@@ -51,6 +61,7 @@ Features
     - CNAME
     - SOA
     - MX
+    - NS
   - Caching
   - Jump directives/Pointer decompression
     - From RFC1035: 'Programs are free to avoid using pointers in messages they
