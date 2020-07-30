@@ -161,8 +161,15 @@ where
         }
     }
 
-    fn inverse_query(&self, req: DnsPacket) -> Result<DnsPacket, ()> {
-        unimplemented!()
+    /// From the spec:
+    /// `Name servers are not
+    /// required to support any form of inverse queries.  If a name server
+    /// receives an inverse query that it does not support, it returns an error
+    /// response with the "Not Implemented" error set in the header`
+    fn inverse_query(&self, _req: DnsPacket) -> Result<DnsPacket, ()> {
+        let mut res = DnsPacket::new_response();
+        res.header.response_code = ResponseCode::NotImplemented;
+        Ok(res)
     }
 }
 
@@ -221,7 +228,16 @@ mod tests {
 
     #[test]
     fn test_inverse_query() {
-        unimplemented!()
+        let mut query = DnsQuery::new();
+        query.name = "invalid domain".to_owned();
+        let mut cache = TtlCache::new(1);
+        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
+        let mut req = DnsPacket::new();
+        req.header.opcode = 1;
+        let actual = client.results(req).unwrap();
+        let mut expected = DnsPacket::new_response();
+        expected.header.response_code = ResponseCode::NotImplemented;
+        assert_eq!(actual, expected);
     }
 
     #[test]
