@@ -14,7 +14,7 @@ use std::fs::read_to_string;
 
 pub struct DnsClient<'a, F>
 where
-    F: Fn(&str, DnsPacket) -> DnsPacket,
+    F: Fn(&str, DnsPacket, u16) -> DnsPacket,
 {
     resolver: F,
     cache: &'a mut Cache,
@@ -23,7 +23,7 @@ where
 
 impl<'a, F> DnsClient<'a, F>
 where
-    F: Fn(&str, DnsPacket) -> DnsPacket,
+    F: Fn(&str, DnsPacket, u16) -> DnsPacket,
 {
     pub fn new(resolver: F, cache: &'a mut Cache, blocklist: HashMap<String, bool>) -> Self {
         DnsClient {
@@ -158,19 +158,8 @@ where
                 }
             }
             // check local authorities for the address, else go to the web
-            let res = (self.resolver)("1.1.1.1", req);
+            let res = (self.resolver)("198.41.0.4", req, 40000);
             Ok(res)
-                /*
-            if res.queries.len() > 0 {
-                return Ok(res);
-            }
-            // TODO If we got any answers, return them. Else check any authoritative records
-            // and recurse
-            for auth in res.authority {
-                unimplemented!()
-            }
-            Ok(res)
-                */
         }
     }
 
@@ -184,12 +173,6 @@ where
         res.header.response_code = ResponseCode::NotImplemented;
         Ok(res)
     }
-
-    /*
-    fn recursive_resolve(&self) -> Result<DnsPacket, ()> {
-        let authoritative_nameserver = "198.41.0.4";
-    }
-    */
 }
 
 fn get_nameserver() -> String {
@@ -214,9 +197,9 @@ mod tests {
     #[test]
     fn accepts_single_question_only() {
         // Doesn't compile:
-        // let client = DnsClient::new(|host: &str, req: DnsPacket| {req}, &mut TtlCache::new(0));
+        // let client = DnsClient::new(|host: &str, req: DnsPacket, _port| {req}, &mut TtlCache::new(0));
         let mut cache = TtlCache::new(0);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
+        let client = DnsClient::new(|_: &str, req: DnsPacket, _port| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 2;
         let res = client.results(req).unwrap();
@@ -230,7 +213,7 @@ mod tests {
         answer.name = "12.34.56.78".to_owned();
         let mut cache = TtlCache::new(1);
         cache.insert(query.clone(), answer.clone(), Duration::from_secs(10));
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
+        let client = DnsClient::new(|_: &str, req: DnsPacket, _port| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
@@ -243,7 +226,7 @@ mod tests {
         let mut query = DnsQuery::new();
         query.name = "invalid domain".to_owned();
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
+        let client = DnsClient::new(|_: &str, req: DnsPacket, _port| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.questions_count = 1;
         req.queries = vec![query];
@@ -256,7 +239,7 @@ mod tests {
         let mut query = DnsQuery::new();
         query.name = "invalid domain".to_owned();
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_: &str, req: DnsPacket| req, &mut cache, HashMap::new());
+        let client = DnsClient::new(|_: &str, req: DnsPacket, _port| req, &mut cache, HashMap::new());
         let mut req = DnsPacket::new();
         req.header.opcode = 1;
         let actual = client.results(req).unwrap();
@@ -328,7 +311,7 @@ records:
         req.header.tx_id = 0xbeef;
 
         let mut cache = TtlCache::new(1);
-        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache, HashMap::new());
+        let client = DnsClient::new(|_, _, _port| DnsPacket::new(), &mut cache, HashMap::new());
         let actual_packet = client.standard_query(req).unwrap();
 
         let mut expected_packet = DnsPacket::new_response();
@@ -516,7 +499,7 @@ minimum: 46";
         let mut cache = TtlCache::new(1);
         let mut blocklist = HashMap::new();
         blocklist.insert("foo.com".to_owned(), true);
-        let client = DnsClient::new(|_, _| DnsPacket::new(), &mut cache, blocklist);
+        let client = DnsClient::new(|_, _, _port| DnsPacket::new(), &mut cache, blocklist);
         client.standard_query(req).unwrap_err();
     }
 }

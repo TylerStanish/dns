@@ -1,8 +1,8 @@
 use crate::answer;
-use crate::header::DnsHeader;
+use crate::header::{DnsHeader, ResourceType};
 use crate::packet;
 use crate::serialization::{FromBytes, ToBytes};
-use std::net::UdpSocket;
+use std::net::{UdpSocket, Ipv4Addr};
 
 pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     let mut res = packet::DnsPacket::new();
@@ -22,8 +22,8 @@ pub fn stub_resolver(_host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
     res
 }
 
-pub fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket {
-    let socket = UdpSocket::bind(("0.0.0.0", 4589))
+pub fn default_resolver(host: &str, req: packet::DnsPacket, listen_port: u16) -> packet::DnsPacket {
+    let socket = UdpSocket::bind(("0.0.0.0", listen_port))
         .expect("Could not initialize listening port, is the port already taken?");
     socket.send_to(&req.to_bytes(), (host, 53)).unwrap();
     let mut res = [0; 1024];
@@ -33,6 +33,17 @@ pub fn default_resolver(host: &str, req: packet::DnsPacket) -> packet::DnsPacket
         Ok((packet, _)) => packet,
         Err(packet) => packet,
     };
-    println!("{:?}", res);
+    for ans in &res.authority {
+        if ans.qtype == ResourceType::NS {
+            for add in &res.additional {
+                if add.qtype == ResourceType::A {
+                    let ip = Ipv4Addr::new(add.rdata[0], add.rdata[1], add.rdata[2], add.rdata[3]);
+                    println!("worked {:?}", ip);
+                    return default_resolver(&ip.to_string(), req, listen_port+1);
+                }
+            }
+        }
+    }
+    //println!("{:?}", res);
     res
 }
