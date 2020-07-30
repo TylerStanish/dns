@@ -160,6 +160,17 @@ where
             // check local authorities for the address, else go to the web
             let res = (self.resolver)("1.1.1.1", req);
             Ok(res)
+                /*
+            if res.queries.len() > 0 {
+                return Ok(res);
+            }
+            // TODO If we got any answers, return them. Else check any authoritative records
+            // and recurse
+            for auth in res.authority {
+                unimplemented!()
+            }
+            Ok(res)
+                */
         }
     }
 
