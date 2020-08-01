@@ -38,18 +38,20 @@ pub fn load_blocklist() -> HashMap<String, bool> {
     )
     .expect("Could not load blocklist yaml file");
     let mut res = HashMap::new();
-    match &yaml_arr[0] {
-        Yaml::Array(a) => {
-            for s in a {
-                let blocked = match s {
-                    Yaml::String(s) => s,
-                    _ => panic!("The blocklist file can only be a list of strings"),
-                };
-                let (domain, contains_wildcard) = validate_blocklist_entry(&blocked).unwrap();
-                res.insert(domain, contains_wildcard);
+    if yaml_arr.len() > 0 {
+        match &yaml_arr[0] {
+            Yaml::Array(a) => {
+                for s in a {
+                    let blocked = match s {
+                        Yaml::String(s) => s,
+                        _ => panic!("The blocklist file can only be a list of strings"),
+                    };
+                    let (domain, contains_wildcard) = validate_blocklist_entry(&blocked).unwrap();
+                    res.insert(domain, contains_wildcard);
+                }
             }
+            _ => panic!("The blocklist file can only be a list of strings"),
         }
-        _ => panic!("The blocklist file can only be a list of strings"),
     }
     res
 }
